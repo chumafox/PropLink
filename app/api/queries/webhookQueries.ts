@@ -1,3 +1,4 @@
+import { checkUrlSSRF } from "../lib/security";
 import { getDb } from "./connection";
 import { webhooks, webhookDeliveries } from "@db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -35,8 +36,17 @@ export async function deleteWebhookScoped(id: number, userId: number) {
   return true;
 }
 
-export async function listDeliveries(webhookId: number) {
-  return getDb()
+export async function listDeliveries(webhookId: number, userId: number) {
+  const db = getDb();
+  const [webhook] = await db
+    .select()
+    .from(webhooks)
+    .where(eq(webhooks.id, webhookId))
+    .limit(1);
+  if (!webhook || webhook.userId !== userId) {
+    return [];
+  }
+  return db
     .select()
     .from(webhookDeliveries)
     .where(eq(webhookDeliveries.webhookId, webhookId))
@@ -75,6 +85,7 @@ export async function dispatchWebhookEvent(
         let status: "success" | "failed" = "success";
         let code: number | null = null;
         try {
+          await checkUrlSSRF(hook.url);
           const res = await fetch(hook.url, {
             method: "POST",
             headers: {

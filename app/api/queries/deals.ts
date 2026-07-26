@@ -25,57 +25,68 @@ const DEFAULT_TASKS: { title: string; assigneeRole: string }[] = [
 
 export async function createDealRoomFromOffer(offerId: number) {
   const db = getDb();
+  return await db.transaction(async (tx) => {
+    // idempotent
+    const [existing] = await tx
+      .select()
+      .from(dealRooms)
+      .where(eq(dealRooms.offerId, offerId))
+      .limit(1);
+    if (existing) return existing;
 
-  // idempotent
-  const [existing] = await db
-    .select()
-    .from(dealRooms)
-    .where(eq(dealRooms.offerId, offerId))
-    .limit(1);
-  if (existing) return existing;
+    const [offerRow] = await tx
+      .select()
+      .from(offers)
+      .where(eq(offers.id, offerId))
+      .limit(1);
+    if (!offerRow) throw new Error("offer not found");
 
-  const [offerRow] = await db
-    .select()
-    .from(offers)
-    .where(eq(offers.id, offerId))
-    .limit(1);
-  if (!offerRow) throw new Error("offer not found");
+    const [listing] = await tx
+      .select()
+      .from(listings)
+      .where(eq(listings.id, offerRow.listingId))
+      .limit(1);
+    if (!listing) throw new Error("listing not found");
 
-  const [listing] = await db
-    .select()
-    .from(listings)
-    .where(eq(listings.id, offerRow.listingId))
-    .limit(1);
-  if (!listing) throw new Error("listing not found");
+    // Inline conversation creation to stay inside transaction
+    const [{ id: convId }] = await tx
+      .insert(conversations)
+      .values({
+        listingId: listing.id,
+        offerId: offerRow.id,
+        subject: `Deal: ${listing.title}`,
+        isGroup: 0,
+      })
+      .$returningId();
+      
+    await tx.insert(conversationParticipants).values([
+      { conversationId: convId, userId: offerRow.buyerId },
+      { conversationId: convId, userId: listing.ownerId }
+    ]);
 
-  const conv = await createConversation([offerRow.buyerId, listing.ownerId], {
-    listingId: listing.id,
-    offerId: offerRow.id,
-    subject: `Deal: ${listing.title}`,
+    const [{ id }] = await tx
+      .insert(dealRooms)
+      .values({
+        offerId: offerRow.id,
+        listingId: listing.id,
+        buyerId: offerRow.buyerId,
+        sellerId: listing.ownerId,
+        conversationId: convId,
+        status: "open",
+      })
+      .$returningId();
+
+    for (const t of DEFAULT_TASKS) {
+      await tx.insert(dealTasks).values({ dealRoomId: id, ...t });
+    }
+
+    const [row] = await tx
+      .select()
+      .from(dealRooms)
+      .where(eq(dealRooms.id, id))
+      .limit(1);
+    return row;
   });
-
-  const [{ id }] = await db
-    .insert(dealRooms)
-    .values({
-      offerId: offerRow.id,
-      listingId: listing.id,
-      buyerId: offerRow.buyerId,
-      sellerId: listing.ownerId,
-      conversationId: conv.id,
-      status: "open",
-    })
-    .$returningId();
-
-  for (const t of DEFAULT_TASKS) {
-    await db.insert(dealTasks).values({ dealRoomId: id, ...t });
-  }
-
-  const [row] = await db
-    .select()
-    .from(dealRooms)
-    .where(eq(dealRooms.id, id))
-    .limit(1);
-  return row;
 }
 
 export async function listDealsForUser(userId: number) {

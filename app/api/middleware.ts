@@ -8,7 +8,25 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const createRouter = t.router;
-export const publicQuery = t.procedure;
+const csrfGuard = t.middleware(async (opts) => {
+  if (opts.type === "mutation") {
+    const origin = opts.ctx.req.headers.get("origin");
+    const host = opts.ctx.req.headers.get("host");
+    if (origin && host) {
+      try {
+        const originUrl = new URL(origin);
+        if (originUrl.host !== host && !originUrl.host.includes("localhost") && !originUrl.host.includes("127.0.0.1")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "CSRF check failed" });
+        }
+      } catch {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Invalid Origin" });
+      }
+    }
+  }
+  return opts.next();
+});
+
+export const publicQuery = t.procedure.use(csrfGuard);
 
 const requireAuth = t.middleware(async (opts) => {
   const { ctx, next } = opts;

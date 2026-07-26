@@ -295,7 +295,7 @@ export default function Listings() {
                       to={`/listings/${l.id}`}
                       className="block text-sm font-medium"
                     >
-                      {formatPrice(l.price)} — {l.title}
+                      {formatPrice(l.price)} — {l.addressLine1}
                     </Link>
                   </Popup>
                 </CircleMarker>

@@ -24,6 +24,7 @@ import {
   Instagram,
   MessageCircle,
   Twitter,
+  Send,
   Plug,
   Copy,
   Loader2,
@@ -56,6 +57,12 @@ const CHANNEL_META = {
     title: "X (Twitter) DM",
     color: "text-foreground",
     desc: "Direct messages via X API. Note: X requires a paid API tier (Basic+) for DM access — X's policy, not ours.",
+  },
+  telegram: {
+    icon: Send,
+    title: "Telegram Bot",
+    color: "text-sky-500",
+    desc: "Connect your Telegram bot to receive and reply to messages directly from the PropLink inbox.",
   },
 } as const;
 
@@ -179,6 +186,9 @@ export function ChannelsTab() {
             immediately.
           </p>
           <p>
+            · <b>Telegram</b>: Create a bot with @BotFather, get the token, and paste it here. Use the generated verify token as the Secret Token in your Telegram webhook setup.
+          </p>
+          <p>
             · App Review: for messaging anyone beyond your own test accounts,
             Meta requires <b>App Review</b> (pages_messaging permission) —
             standard procedure, takes a few days.
@@ -267,9 +277,13 @@ function ConnectDialog({
     onSuccess: () => invalidateAndToast(),
     onError: (e) => toast.error(e.message),
   });
+  const connectTelegram = trpc.channels.connectTelegram.useMutation({
+    onSuccess: (r) => invalidateAndToast(r.verifyToken),
+    onError: (e) => toast.error(e.message),
+  });
 
   const pending =
-    connectMeta.isPending || connectWa.isPending || connectX.isPending;
+    connectMeta.isPending || connectWa.isPending || connectX.isPending || connectTelegram.isPending;
 
   const submit = () => {
     if (channel === "facebook" || channel === "instagram") {
@@ -287,11 +301,17 @@ function ConnectDialog({
         accessToken: token.trim(),
         appSecret: appSecret.trim() || undefined,
       });
-    } else {
+    } else if (channel === "x") {
       connectX.mutate({
         xUserId: accountId.trim(),
         username: accountName.trim() || undefined,
         accessToken: token.trim(),
+      });
+    } else if (channel === "telegram") {
+      connectTelegram.mutate({
+        botId: accountId.trim(),
+        botName: accountName.trim() || undefined,
+        botToken: token.trim(),
       });
     }
   };
@@ -303,13 +323,17 @@ function ConnectDialog({
         ? "IG Business Account ID"
         : channel === "whatsapp"
           ? "Phone Number ID"
-          : "X user ID (numeric)";
+          : channel === "telegram"
+            ? "Numeric Bot ID (first part of token)"
+            : "X user ID (numeric)";
   const tokenLabel =
     channel === "whatsapp"
       ? "WhatsApp permanent access token"
-      : channel === "x"
-        ? "OAuth2 user access token (paid tier)"
-        : "Page access token";
+      : channel === "telegram"
+        ? "Bot Token"
+        : channel === "x"
+          ? "OAuth2 user access token (paid tier)"
+          : "Page access token";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -329,14 +353,14 @@ function ConnectDialog({
         {savedVerify ? (
           <div className="space-y-3">
             <p className="text-sm">
-              Connected. Now paste this into your Meta app's webhook settings:
+              Connected. Now paste this into your {channel === "telegram" ? "Telegram webhook setup" : "Meta app's webhook settings"}:
             </p>
             <div className="rounded-md border p-3 text-xs">
               <p className="mb-1 font-medium">Callback URL:</p>
               <code className="break-all">
-                {window.location.origin}/api/webhooks/channels/meta
+                {window.location.origin}/api/webhooks/channels/{channel === "telegram" ? "telegram" : "meta"}
               </code>
-              <p className="mb-1 mt-3 font-medium">Verify token:</p>
+              <p className="mb-1 mt-3 font-medium">Verify {channel === "telegram" ? "Secret Token" : "token"}:</p>
               <code className="break-all">{savedVerify}</code>
             </div>
             <Button className="w-full" onClick={onSaved}>

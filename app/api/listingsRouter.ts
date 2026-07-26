@@ -15,6 +15,7 @@ import { listingInputSchema } from "@contracts/listing";
 import { propertyTypes, listingStatuses } from "@db/schema";
 import { dispatchWebhookEvent } from "./queries/webhookQueries";
 import { notifyListingMatches } from "./queries/savedSearches";
+import { fetchZillowPropertyByAddress } from "./lib/zillow";
 
 export const listingsRouter = createRouter({
   search: publicQuery
@@ -86,9 +87,8 @@ export const listingsRouter = createRouter({
         batchData: listingInputSchema.shape.batchData,
       }),
     )
-    .mutation(async ({ input }) => {
-      // Intentionally omitting ownerId check so any participant can fetch/save data
-      const row = await updateBatchData(input.id, input.batchData);
+    .mutation(async ({ ctx, input }) => {
+      const row = await updateBatchData(input.id, ctx.user.id, input.batchData);
       if (!row) throw new TRPCError({ code: "NOT_FOUND" });
       return row;
     }),
@@ -98,5 +98,48 @@ export const listingsRouter = createRouter({
     .mutation(async ({ ctx, input }) => {
       await deleteListing(input.id, ctx.user.id);
       return { ok: true };
+    }),
+
+  importFromZillow: authedQuery
+    .input(z.object({ address: z.string().min(5) }))
+    .mutation(async ({ input }) => {
+      const details = await fetchZillowPropertyByAddress(input.address);
+      
+      // Extract photos
+      const photos: string[] = [];
+      const extractUrl = (p: any) => {
+        if (typeof p === "string") return p;
+        if (p?.url) return p.url;
+        if (p?.mixedSources?.jpeg?.length) {
+          // get the highest resolution (usually last in array) or just the first
+          return p.mixedSources.jpeg[p.mixedSources.jpeg.length - 1].url;
+        }
+        return null;
+      };
+
+      if (details.originalPhotos && Array.isArray(details.originalPhotos)) {
+        const urls = details.originalPhotos.map(extractUrl).filter(Boolean);
+        photos.push(...urls);
+      } else if (details.responsivePhotos && Array.isArray(details.responsivePhotos)) {
+        const urls = details.responsivePhotos.map(extractUrl).filter(Boolean);
+        photos.push(...urls);
+      }
+      
+      return {
+        description: details.description || "",
+        price: details.price || details.zestimate || "",
+        addressLine1: details.streetAddress || details.address?.streetAddress || "",
+        city: details.city || details.address?.city || "",
+        state: details.state || details.address?.state || "",
+        zip: details.zipcode || details.address?.zipcode || "",
+        lat: details.latitude,
+        lng: details.longitude,
+        beds: details.bedrooms,
+        baths: details.bathrooms,
+        sqft: details.livingArea,
+        lotSqft: details.lotSize || details.resoFacts?.lotSize,
+        yearBuilt: details.yearBuilt,
+        photos: photos.slice(0, 40),
+      };
     }),
 });

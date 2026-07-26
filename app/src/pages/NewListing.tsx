@@ -32,7 +32,6 @@ export default function NewListing() {
   const editId = params.get("edit") ? Number(params.get("edit")) : null;
 
   const [form, setForm] = useState({
-    title: "",
     description: "",
     propertyType: "house",
     status: "active",
@@ -61,12 +60,36 @@ export default function NewListing() {
     enabled: !!user,
   });
   const [uploading, setUploading] = useState(false);
+  const [zAddress, setZAddress] = useState("");
+
+  const importZ = trpc.listings.importFromZillow.useMutation({
+    onSuccess: (data) => {
+      setForm((f) => ({
+        ...f,
+        description: data.description || f.description,
+        price: data.price ? String(data.price) : f.price,
+        addressLine1: data.addressLine1 || f.addressLine1,
+        city: data.city || f.city,
+        state: data.state || f.state,
+        zip: data.zip || f.zip,
+        lat: data.lat ? String(data.lat) : f.lat,
+        lng: data.lng ? String(data.lng) : f.lng,
+        beds: data.beds ? String(data.beds) : f.beds,
+        baths: data.baths ? String(data.baths) : f.baths,
+        sqft: data.sqft ? String(data.sqft) : f.sqft,
+        lotSqft: data.lotSqft ? String(data.lotSqft) : f.lotSqft,
+        yearBuilt: data.yearBuilt ? String(data.yearBuilt) : f.yearBuilt,
+        photos: data.photos && data.photos.length > 0 ? data.photos.join("\n") : f.photos,
+      }));
+      toast.success("Successfully imported data from Zillow API!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   useEffect(() => {
     if (existing?.listing) {
       const l = existing.listing;
       setForm({
-        title: l.title,
         description: l.description ?? "",
         propertyType: l.propertyType,
         status: l.status,
@@ -110,7 +133,6 @@ export default function NewListing() {
 
   const submit = () => {
     const payload = {
-      title: form.title,
       description: form.description || undefined,
       propertyType: form.propertyType as any,
       status: form.status as any,
@@ -162,17 +184,35 @@ export default function NewListing() {
           instead.
         </p>
 
+        {!editId && (
+          <Card className="mt-6 border-0 shadow-sm bg-blue-50/50">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-end gap-3">
+                <div className="space-y-1.5 flex-1 w-full">
+                  <Label className="flex items-center gap-2">
+                    <span className="font-bold text-blue-600">Z</span> 
+                    Auto-fill from Zillow
+                  </Label>
+                  <Input
+                    placeholder="Enter full property address (e.g. 1011 E 11th St, Austin, TX 78702)"
+                    value={zAddress}
+                    onChange={(e) => setZAddress(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  disabled={!zAddress.trim() || importZ.isPending}
+                  onClick={() => importZ.mutate({ address: zAddress.trim() })}
+                  className="w-full sm:w-auto"
+                >
+                  {importZ.isPending ? "Loading..." : "Import"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="mt-6 border-0 shadow-sm">
           <CardContent className="space-y-5 p-6">
-            <div className="space-y-1.5">
-              <Label>Title *</Label>
-              <Input
-                placeholder="Beautiful 4-bed craftsman near downtown"
-                value={form.title}
-                onChange={(e) => set("title")(e.target.value)}
-              />
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label>Price, $ *</Label>
@@ -403,7 +443,6 @@ export default function NewListing() {
               size="lg"
               disabled={
                 pending ||
-                !form.title ||
                 !form.price ||
                 !form.addressLine1 ||
                 !form.city ||

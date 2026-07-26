@@ -101,6 +101,30 @@ export const channelsRouter = createRouter({
       return { id };
     }),
 
+  // Connect Telegram Bot
+  connectTelegram: authedQuery
+    .input(
+      z.object({
+        botId: z.string().min(2).max(255), // Numeric bot ID (from token)
+        botName: z.string().max(255).optional(), // e.g. @my_bot
+        botToken: z.string().min(10).max(2048), // e.g. 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+        verifyToken: z.string().max(255).optional(), // Telegram X-Telegram-Bot-Api-Secret-Token
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const verifyToken =
+        input.verifyToken?.trim() ||
+        `plk_${randomBytes(12).toString("hex")}`;
+      const id = await addConnection(ctx.user.id, {
+        channel: "telegram",
+        externalAccountId: input.botId.trim(),
+        externalAccountName: input.botName ?? null,
+        accessToken: input.botToken, // Bot token acts as access token
+        verifyToken,
+      });
+      return { id, verifyToken };
+    }),
+
   disconnect: authedQuery
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {

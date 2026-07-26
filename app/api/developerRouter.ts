@@ -49,5 +49,5 @@ export const developerRouter = createRouter({
 
   deliveries: authedQuery
     .input(z.object({ webhookId: z.number().int().positive() }))
-    .query(({ input }) => listDeliveries(input.webhookId)),
+    .query(({ ctx, input }) => listDeliveries(input.webhookId, ctx.user.id)),
 });

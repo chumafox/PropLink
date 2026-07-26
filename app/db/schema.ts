@@ -16,7 +16,7 @@ export const users = mysqlTable("users", {
   id: serial("id").primaryKey(),
   unionId: varchar("unionId", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 255 }),
-  email: varchar("email", { length: 320 }),
+  email: varchar("email", { length: 320 }).unique(),
   // scrypt hash for email/password accounts (test/demo users without OAuth)
   passwordHash: varchar("passwordHash", { length: 255 }),
   avatar: text("avatar"),
@@ -55,6 +55,7 @@ export const profiles = mysqlTable("profiles", {
   id: serial("id").primaryKey(),
   userId: bigint("userId", { mode: "number", unsigned: true })
     .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
     .unique(),
   proRole: mysqlEnum("proRole", proRoles).notNull(),
   company: varchar("company", { length: 255 }),
@@ -103,8 +104,7 @@ export const listings = mysqlTable(
   "listings",
   {
     id: serial("id").primaryKey(),
-    ownerId: bigint("ownerId", { mode: "number", unsigned: true }).notNull(),
-    title: varchar("title", { length: 255 }).notNull(),
+    ownerId: bigint("ownerId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     description: text("description"),
     propertyType: mysqlEnum("propertyType", propertyTypes)
       .default("house")
@@ -144,6 +144,7 @@ export const listings = mysqlTable(
     statusIdx: index("listings_status_idx").on(table.status),
     cityIdx: index("listings_city_idx").on(table.city),
     priceIdx: index("listings_price_idx").on(table.price),
+    statusCityPriceIdx: index("listings_status_city_price_idx").on(table.status, table.city, table.price),
   }),
 );
 export type Listing = typeof listings.$inferSelect;
@@ -176,8 +177,8 @@ export const offers = mysqlTable(
   "offers",
   {
     id: serial("id").primaryKey(),
-    listingId: bigint("listingId", { mode: "number", unsigned: true }).notNull(),
-    buyerId: bigint("buyerId", { mode: "number", unsigned: true }).notNull(),
+    listingId: bigint("listingId", { mode: "number", unsigned: true }).notNull().references(() => listings.id, { onDelete: "cascade" }),
+    buyerId: bigint("buyerId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     price: bigint("price", { mode: "number" }).notNull(),
     earnestMoney: bigint("earnestMoney", { mode: "number" }),
     financingType: mysqlEnum("financingType", financingTypes)
@@ -210,7 +211,7 @@ export type Offer = typeof offers.$inferSelect;
 
 export const imports = mysqlTable("imports", {
   id: serial("id").primaryKey(),
-  userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
   filename: varchar("filename", { length: 255 }).notNull(),
   format: mysqlEnum("format", ["csv", "json"]).notNull(),
   totalRows: int("totalRows").default(0).notNull(),
@@ -236,8 +237,8 @@ export const conversations = mysqlTable(
   "conversations",
   {
     id: serial("id").primaryKey(),
-    listingId: bigint("listingId", { mode: "number", unsigned: true }),
-    offerId: bigint("offerId", { mode: "number", unsigned: true }),
+    listingId: bigint("listingId", { mode: "number", unsigned: true }).references(() => listings.id, { onDelete: "set null" }),
+    offerId: bigint("offerId", { mode: "number", unsigned: true }).references(() => offers.id, { onDelete: "set null" }),
     subject: varchar("subject", { length: 255 }),
     isGroup: int("isGroup").default(0).notNull(),
     pinnedFiles: json("pinnedFiles").$type<Attachment[]>(),
@@ -252,7 +253,7 @@ export const conversations = mysqlTable(
     ])
       .default("internal")
       .notNull(),
-    connectionId: bigint("connectionId", { mode: "number", unsigned: true }),
+    connectionId: bigint("connectionId", { mode: "number", unsigned: true }).references(() => channelConnections.id, { onDelete: "set null" }),
     // External thread identifier (PSID for Meta, phone for WhatsApp, …)
     externalThreadId: varchar("externalThreadId", { length: 255 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -273,8 +274,8 @@ export const conversationParticipants = mysqlTable(
     conversationId: bigint("conversationId", {
       mode: "number",
       unsigned: true,
-    }).notNull(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    }).notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     lastReadAt: timestamp("lastReadAt"),
     notes: text("notes"),
     isPinned: int("isPinned").default(0).notNull(),
@@ -298,7 +299,7 @@ export const conversationTasks = mysqlTable(
     conversationId: bigint("conversationId", {
       mode: "number",
       unsigned: true,
-    }).notNull(),
+    }).notNull().references(() => conversations.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 255 }).notNull(),
     status: mysqlEnum("status", conversationTaskStatuses).default("todo").notNull(),
     position: int("position").default(0).notNull(),
@@ -317,8 +318,8 @@ export const messages = mysqlTable(
     conversationId: bigint("conversationId", {
       mode: "number",
       unsigned: true,
-    }).notNull(),
-    senderId: bigint("senderId", { mode: "number", unsigned: true }).notNull(),
+    }).notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: bigint("senderId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     body: text("body"),
     attachments: json("attachments").$type<Attachment[]>(),
     // Cached translations: { "en": "...", "ru": "..." } — filled lazily on read
@@ -329,6 +330,7 @@ export const messages = mysqlTable(
   },
   (table) => ({
     convIdx: index("msg_conv_idx").on(table.conversationId),
+    convCreatedAtIdx: index("msg_conv_created_idx").on(table.conversationId, table.createdAt),
   }),
 );
 export type Message = typeof messages.$inferSelect;
@@ -350,14 +352,15 @@ export const dealRooms = mysqlTable(
     id: serial("id").primaryKey(),
     offerId: bigint("offerId", { mode: "number", unsigned: true })
       .notNull()
+      .references(() => offers.id, { onDelete: "cascade" })
       .unique(),
-    listingId: bigint("listingId", { mode: "number", unsigned: true }).notNull(),
-    buyerId: bigint("buyerId", { mode: "number", unsigned: true }).notNull(),
-    sellerId: bigint("sellerId", { mode: "number", unsigned: true }).notNull(),
+    listingId: bigint("listingId", { mode: "number", unsigned: true }).notNull().references(() => listings.id, { onDelete: "cascade" }),
+    buyerId: bigint("buyerId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    sellerId: bigint("sellerId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     conversationId: bigint("conversationId", {
       mode: "number",
       unsigned: true,
-    }),
+    }).references(() => conversations.id, { onDelete: "set null" }),
     status: mysqlEnum("status", dealStatuses).default("open").notNull(),
     targetClosingDate: varchar("targetClosingDate", { length: 32 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -378,7 +381,7 @@ export const dealTasks = mysqlTable(
   {
     id: serial("id").primaryKey(),
     dealRoomId: bigint("dealRoomId", { mode: "number", unsigned: true })
-      .notNull(),
+      .notNull().references(() => dealRooms.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 255 }).notNull(),
     assigneeRole: varchar("assigneeRole", { length: 64 }),
     done: int("done").default(0).notNull(),
@@ -395,9 +398,9 @@ export const dealDocuments = mysqlTable(
   {
     id: serial("id").primaryKey(),
     dealRoomId: bigint("dealRoomId", { mode: "number", unsigned: true })
-      .notNull(),
+      .notNull().references(() => dealRooms.id, { onDelete: "cascade" }),
     uploadedBy: bigint("uploadedBy", { mode: "number", unsigned: true })
-      .notNull(),
+      .notNull().references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
     url: text("url").notNull(),
     version: int("version").default(1).notNull(),
@@ -415,7 +418,7 @@ export const apiKeys = mysqlTable(
   "api_keys",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 128 }).notNull(),
     prefix: varchar("prefix", { length: 16 }).notNull(),
     keyHash: varchar("keyHash", { length: 128 }).notNull().unique(),
@@ -445,7 +448,7 @@ export const webhooks = mysqlTable(
   "webhooks",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     secret: varchar("secret", { length: 128 }).notNull(),
     events: json("events").$type<string[]>(),
@@ -463,7 +466,7 @@ export const webhookDeliveries = mysqlTable(
   {
     id: serial("id").primaryKey(),
     webhookId: bigint("webhookId", { mode: "number", unsigned: true })
-      .notNull(),
+      .notNull().references(() => webhooks.id, { onDelete: "cascade" }),
     event: varchar("event", { length: 64 }).notNull(),
     payload: json("payload"),
     status: mysqlEnum("status", ["success", "failed"]).notNull(),
@@ -526,7 +529,7 @@ export const countyConnectors = mysqlTable(
   "county_connectors",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     county: varchar("county", { length: 128 }).notNull(),
     state: varchar("state", { length: 64 }).notNull(),
     sourceUrl: text("sourceUrl"),
@@ -550,7 +553,7 @@ export const savedSearches = mysqlTable(
   "saved_searches",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 128 }).notNull(),
     filters: json("filters").$type<{
       q?: string;
@@ -575,7 +578,7 @@ export const notifications = mysqlTable(
   "notifications",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     type: varchar("type", { length: 64 }).notNull(),
     title: varchar("title", { length: 255 }).notNull(),
     body: varchar("body", { length: 1000 }),
@@ -658,14 +661,14 @@ export type AiSettings = typeof aiSettings.$inferSelect;
 
 // ---- Omnichannel integrations (GHL-style unified inbox) ----
 
-export const channelKinds = ["facebook", "instagram", "whatsapp", "x"] as const;
+export const channelKinds = ["facebook", "instagram", "whatsapp", "x", "telegram"] as const;
 export type ChannelKind = (typeof channelKinds)[number];
 
 export const channelConnections = mysqlTable(
   "channel_connections",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
     channel: mysqlEnum("channel", channelKinds).notNull(),
     status: mysqlEnum("status", ["active", "error", "disconnected"])
       .default("active")
@@ -699,8 +702,8 @@ export const hiddenMessages = mysqlTable(
   "hidden_messages",
   {
     id: serial("id").primaryKey(),
-    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
-    messageId: bigint("messageId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    messageId: bigint("messageId", { mode: "number", unsigned: true }).notNull().references(() => messages.id, { onDelete: "cascade" }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   (table) => ({

@@ -37,6 +37,7 @@ import {
 } from "./queries/channels";
 import { sendMetaText, sendWhatsAppText } from "./channels/meta";
 import { sendXdm } from "./channels/x";
+import { sendTelegramMessage } from "./channels/telegram";
 
 const attachmentSchema = z.object({
   url: z.string().url(),
@@ -212,7 +213,7 @@ export const messagesRouter = createRouter({
       if (!(await isParticipant(input.conversationId, ctx.user.id))) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
-      await reorderConversationTasks(input.taskIds);
+      await reorderConversationTasks(input.conversationId, input.taskIds);
       return { ok: true };
     }),
 
@@ -301,6 +302,12 @@ export const messagesRouter = createRouter({
               );
             } else if (conn.channel === "x") {
               externalId = await sendXdm(
+                conn,
+                conv.externalThreadId!,
+                input.body!.trim(),
+              );
+            } else if (conn.channel === "telegram") {
+              externalId = await sendTelegramMessage(
                 conn,
                 conv.externalThreadId!,
                 input.body!.trim(),

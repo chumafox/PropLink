@@ -232,7 +232,7 @@ const FloatingListing = ({
       >
         <span className="text-sm font-semibold flex items-center gap-2 truncate pr-2">
           <Home className="w-4 h-4 shrink-0" />
-          {listing ? listing.title : "Property Details"}
+          {listing ? listing.addressLine1 : "Property Details"}
         </span>
         <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onClose} onMouseDown={(e) => e.stopPropagation()}>
           <X className="w-4 h-4" />
@@ -243,11 +243,11 @@ const FloatingListing = ({
         {listing && (
           <>
             {listing.photos && listing.photos.length > 0 ? (
-              <img src={listing.photos[0]} alt={listing.title} className="w-full h-40 object-cover rounded-md mb-4 shrink-0" />
+              <img src={listing.photos[0]} alt={listing.addressLine1} className="w-full h-40 object-cover rounded-md mb-4 shrink-0" />
             ) : (
               <div className="w-full h-40 bg-muted rounded-md mb-4 flex items-center justify-center text-muted-foreground shrink-0">No Photo</div>
             )}
-            <h3 className="font-semibold text-lg mb-1">{listing.title}</h3>
+            <h3 className="font-semibold text-lg mb-1">{listing.addressLine1}</h3>
             <p className="text-xl font-bold text-primary mb-2">${(listing.price || 0).toLocaleString()}</p>
             <div className="text-sm text-muted-foreground flex gap-4 mb-4">
               <span>{listing.beds} beds</span>

@@ -94,6 +94,17 @@ export function createOAuthCallbackHandler() {
 
     try {
       const redirectUri = atob(state);
+      const reqHost = c.req.header("host");
+      
+      try {
+        const parsedUrl = new URL(redirectUri);
+        if (reqHost && parsedUrl.host !== reqHost && !parsedUrl.host.includes("localhost")) {
+          throw new Error("Invalid redirect URI host");
+        }
+      } catch (e) {
+         throw new Error("Invalid redirect URI format");
+      }
+
       const tokenResp = await exchangeAuthCode(code, redirectUri);
       const { userId } = await verifyAccessToken(tokenResp.access_token);
       const userProfile = await kimiUsers.getProfile(tokenResp.access_token);

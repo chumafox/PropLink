@@ -58,9 +58,12 @@ export const uploadsRouter = createRouter({
   // Fresh presigned GET for a private file (attachments stored as s3://key)
   fileUrl: authedQuery
     .input(z.object({ key: z.string().min(5).max(512) }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       if (!uploadsConfigured()) {
         throw new TRPCError({ code: "PRECONDITION_FAILED" });
+      }
+      if (!input.key.startsWith(`private/${ctx.user.id}/`)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
       }
       return { url: await presignGet(input.key) };
     }),

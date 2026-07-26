@@ -4,6 +4,7 @@
 //    openrouter, ollama, lmstudio, custom (any base URL)
 //  - Anthropic Messages API: anthropic
 import type { AiProvider } from "../../db/schema";
+import { checkUrlSSRF } from "../lib/security";
 
 export interface AiConfig {
   provider: AiProvider;
@@ -76,6 +77,7 @@ function buildPrompt(text: string, targetLang: string): string {
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, ms = 20000) {
+  await checkUrlSSRF(url);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {

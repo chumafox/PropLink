@@ -165,26 +165,28 @@ export async function createConversation(
   opts: { listingId?: number; offerId?: number; subject?: string; isGroup?: boolean } = {},
 ) {
   const db = getDb();
-  const [{ id }] = await db
-    .insert(conversations)
-    .values({
-      listingId: opts.listingId ?? null,
-      offerId: opts.offerId ?? null,
-      subject: opts.subject ?? null,
-      isGroup: opts.isGroup ? 1 : 0,
-    })
-    .$returningId();
-  for (const uid of participantIds) {
-    await db
-      .insert(conversationParticipants)
-      .values({ conversationId: id, userId: uid });
-  }
-  const [row] = await db
-    .select()
-    .from(conversations)
-    .where(eq(conversations.id, id))
-    .limit(1);
-  return row;
+  return await db.transaction(async (tx) => {
+    const [{ id }] = await tx
+      .insert(conversations)
+      .values({
+        listingId: opts.listingId ?? null,
+        offerId: opts.offerId ?? null,
+        subject: opts.subject ?? null,
+        isGroup: opts.isGroup ? 1 : 0,
+      })
+      .$returningId();
+    for (const uid of participantIds) {
+      await tx
+        .insert(conversationParticipants)
+        .values({ conversationId: id, userId: uid });
+    }
+    const [row] = await tx
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, id))
+      .limit(1);
+    return row;
+  });
 }
 
 export async function getChatContacts(userId: number) {
@@ -262,44 +264,48 @@ export async function sendMessage(
   attachments: Attachment[],
 ) {
   const db = getDb();
-  const [{ id }] = await db
-    .insert(messages)
-    .values({ conversationId, senderId, body, attachments })
-    .$returningId();
-  await db
-    .update(conversations)
-    .set({ lastMessageAt: new Date() })
-    .where(eq(conversations.id, conversationId));
-  const [row] = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.id, id))
-    .limit(1);
-  return row;
+  return await db.transaction(async (tx) => {
+    const [{ id }] = await tx
+      .insert(messages)
+      .values({ conversationId, senderId, body, attachments })
+      .$returningId();
+    await tx
+      .update(conversations)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(conversations.id, conversationId));
+    const [row] = await tx
+      .select()
+      .from(messages)
+      .where(eq(messages.id, id))
+      .limit(1);
+    return row;
+  });
 }
 
 export async function markRead(conversationId: number, userId: number) {
   const db = getDb();
-  await db
-    .update(conversationParticipants)
-    .set({ lastReadAt: new Date() })
-    .where(
-      and(
-        eq(conversationParticipants.conversationId, conversationId),
-        eq(conversationParticipants.userId, userId),
-      ),
-    );
+  await db.transaction(async (tx) => {
+    await tx
+      .update(conversationParticipants)
+      .set({ lastReadAt: new Date() })
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversationId),
+          eq(conversationParticipants.userId, userId),
+        ),
+      );
 
-  await db
-    .update(notifications)
-    .set({ readAt: new Date() })
-    .where(
-      and(
-        eq(notifications.userId, userId),
-        eq(notifications.link, `/messages/${conversationId}`),
-        sql`${notifications.readAt} IS NULL`
-      )
-    );
+    await tx
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.link, `/messages/${conversationId}`),
+          sql`${notifications.readAt} IS NULL`
+        )
+      );
+  });
 }
 
 export async function totalUnread(userId: number) {
@@ -478,13 +484,18 @@ export async function reorderConversations(conversationIds: number[], userId: nu
 }
 
 
-export async function reorderConversationTasks(taskIds: number[]) {
+export async function reorderConversationTasks(conversationId: number, taskIds: number[]) {
   const db = getDb();
   // Simple reorder: update position for each given taskId
   for (let i = 0; i < taskIds.length; i++) {
     await db
       .update(conversationTasks)
       .set({ position: i })
-      .where(eq(conversationTasks.id, taskIds[i]));
+      .where(
+        and(
+          eq(conversationTasks.id, taskIds[i]),
+          eq(conversationTasks.conversationId, conversationId)
+        )
+      );
   }
 }

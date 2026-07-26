@@ -38,7 +38,6 @@ export async function searchListings(input: ListingSearchInput) {
     const pattern = `%${input.q}%`;
     conds.push(
       or(
-        like(listings.title, pattern),
         like(listings.city, pattern),
         like(listings.addressLine1, pattern),
         like(listings.zip, pattern),
@@ -147,12 +146,13 @@ export async function updateListing(
 
 export async function updateBatchData(
   id: number,
+  ownerId: number,
   batchData: any,
 ) {
   await getDb()
     .update(listings)
     .set({ batchData })
-    .where(eq(listings.id, id));
+    .where(and(eq(listings.id, id), eq(listings.ownerId, ownerId)));
   
   const [row] = await getDb()
     .select()

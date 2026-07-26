@@ -165,7 +165,7 @@ export default function ListingDetail() {
         <div className="relative overflow-hidden rounded-2xl bg-muted">
           <img
             src={photos[photoIdx]}
-            alt={listing.title}
+            alt={listing.addressLine1}
             className="aspect-[2/1] w-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/photos/house-1.jpg";
@@ -270,7 +270,7 @@ export default function ListingDetail() {
 
             <h2 className="mt-8 text-xl font-semibold">About this home</h2>
             <p className="mt-3 whitespace-pre-line leading-relaxed text-muted-foreground">
-              {listing.description || listing.title}
+              {listing.description || listing.addressLine1}
             </p>
 
             {!!listing.features?.length && (
@@ -336,7 +336,7 @@ export default function ListingDetail() {
                   <p className="text-xs text-muted-foreground">
                     Listed {timeAgo(listing.createdAt)} · posted directly
                   </p>
-                  <ShareButtons title={listing.title} />
+                  <ShareButtons title={listing.addressLine1} />
                 </div>
               </CardContent>
             </Card>

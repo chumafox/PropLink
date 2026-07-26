@@ -411,7 +411,7 @@ export default function Dashboard() {
                         to={`/listings/${l.id}`}
                         className="truncate font-semibold hover:underline"
                       >
-                        {l.title}
+                        {l.addressLine1}
                       </Link>
                       <Badge
                         className={`border-0 ${LISTING_STATUS_STYLES[l.status]}`}

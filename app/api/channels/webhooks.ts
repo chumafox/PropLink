@@ -72,6 +72,25 @@ channelWebhooks.post("/meta", async (c) => {
   return c.text("EVENT_RECEIVED", 200);
 });
 
+import { processTelegramWebhook } from "./telegram";
+
+channelWebhooks.post("/telegram", async (c) => {
+  const secretToken = c.req.header("x-telegram-bot-api-secret-token");
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.text("Bad Request", 400);
+  }
+  
+  try {
+    await processTelegramWebhook(body, secretToken);
+  } catch (e) {
+    console.error("[channels] telegram webhook error:", e);
+  }
+  return c.text("OK", 200);
+});
+
 function extractExternalAccountId(body: any, channel: ChannelKind): string | null {
   try {
     if (channel === "whatsapp") {

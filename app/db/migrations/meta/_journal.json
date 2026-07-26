@@ -71,6 +71,13 @@
       "when": 1784984896859,
       "tag": "0009_sparkling_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1785044391560,
+      "tag": "0010_lazy_thunderbolts",
+      "breakpoints": true
     }
   ]
 }
