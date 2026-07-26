@@ -16,7 +16,10 @@ import {
 import { connectors, getConnector } from "./foreclosure/connectors";
 import { extractArray, normalizeRow } from "./foreclosure/normalize";
 import { foreclosureRecordTypes } from "@db/schema";
-import { crawlAndSaveStateCounties } from "./lib/netrCrawler";
+import {
+  getCountyListForState,
+  crawlAndSaveSingleCounty,
+} from "./lib/netrCrawler";
 
 async function insertNormalized(records: ReturnType<typeof normalizeRow>[]) {
   let inserted = 0;
@@ -179,15 +182,28 @@ export const foreclosuresRouter = createRouter({
       return { fetched: records.length, valid: records.length, inserted };
     }),
 
-  crawlNetrState: authedQuery
+  getNetrCounties: authedQuery
     .input(z.object({ state: z.string().length(2) }))
-    .mutation(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       try {
-        return await crawlAndSaveStateCounties(input.state, ctx.user.id);
+        return await getCountyListForState(input.state);
       } catch (err: any) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: err.message || "Failed to crawl NETR Online directory",
+          message: err.message || "Failed to fetch county list from NETR Online",
+        });
+      }
+    }),
+
+  crawlNetrCounty: authedQuery
+    .input(z.object({ countyUrl: z.string().url() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await crawlAndSaveSingleCounty(input.countyUrl, ctx.user.id);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err.message || "Failed to crawl selected county from NETR Online",
         });
       }
     }),

@@ -11,11 +11,17 @@ export interface NetrPortalInfo {
   sourceUrl: string;
 }
 
+export interface NetrCountyItem {
+  name: string;
+  slug: string;
+  url: string;
+}
+
 /**
- * Scrapes a single state page on NETR Online to find all county links.
- * Example stateUrl: "https://publicrecords.netronline.com/state/FL"
+ * Scrapes a state page on NETR Online to find all county links.
+ * Returns array of formatted county items.
  */
-export async function getCountyUrlsForState(stateCode: string): Promise<string[]> {
+export async function getCountyListForState(stateCode: string): Promise<NetrCountyItem[]> {
   const stateUpper = stateCode.toUpperCase();
   const url = `https://publicrecords.netronline.com/state/${stateUpper}`;
   const apiKey = process.env.FIRECRAWL_API_KEY;
@@ -44,17 +50,34 @@ export async function getCountyUrlsForState(stateCode: string): Promise<string[]
   const data = (await response.json()) as { success: boolean; data?: { links?: string[] } };
   const links = data.data?.links ?? [];
 
-  // Filter links for county paths: e.g. "/state/FL/county/hillsborough"
-  const countyLinks = links.filter((l) =>
-    l.toLowerCase().includes(`/state/${stateUpper.toLowerCase()}/county/`)
-  );
+  const countyPattern = new RegExp(`/state/${stateUpper}/county/([A-Za-z0-9_-]+)`, "i");
+  const uniqueCounties = new Map<string, NetrCountyItem>();
 
-  return Array.from(new Set(countyLinks));
+  for (const rawUrl of links) {
+    const match = rawUrl.match(countyPattern);
+    if (match) {
+      const slug = match[1].toLowerCase();
+      if (!uniqueCounties.has(slug)) {
+        const rawName = slug.replace(/_/g, " ");
+        const name = rawName
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+
+        const fullUrl = rawUrl.startsWith("http")
+          ? rawUrl
+          : `https://publicrecords.netronline.com${rawUrl}`;
+
+        uniqueCounties.set(slug, { name, slug, url: fullUrl });
+      }
+    }
+  }
+
+  return Array.from(uniqueCounties.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
  * Scrapes a single county page on NETR Online to extract portal links.
- * Uses Firecrawl structured JSON extraction format.
  */
 export async function scrapeCountyPortals(countyUrl: string): Promise<NetrPortalInfo | null> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
@@ -63,13 +86,15 @@ export async function scrapeCountyPortals(countyUrl: string): Promise<NetrPortal
     throw new Error("FIRECRAWL_API_KEY is not configured in environment variables.");
   }
 
-  // Parse state and county from URL: /state/FL/county/hillsborough
   const match = countyUrl.match(/\/state\/([A-Za-z]{2})\/county\/([A-Za-z0-9_-]+)/i);
   if (!match) return null;
 
   const state = match[1].toUpperCase();
   const rawCounty = match[2].replace(/_/g, " ");
-  const countyName = rawCounty.charAt(0).toUpperCase() + rawCounty.slice(1);
+  const countyName = rawCounty
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
   const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",
@@ -122,50 +147,35 @@ export async function scrapeCountyPortals(countyUrl: string): Promise<NetrPortal
 }
 
 /**
- * Main crawler method to discover and import county sources for a state into county_connectors.
+ * Scrapes and saves ONE specific selected county into county_connectors.
  */
-export async function crawlAndSaveStateCounties(stateCode: string, userId: number) {
-  const countyUrls = await getCountyUrlsForState(stateCode);
-  const results: NetrPortalInfo[] = [];
-
-  // Scrape counties (limit batch to top 10 for performance/credit protection)
-  const targetUrls = countyUrls.slice(0, 10);
-
-  for (const url of targetUrls) {
-    try {
-      const portalInfo = await scrapeCountyPortals(url);
-      if (portalInfo) {
-        results.push(portalInfo);
-
-        // Save or update in database
-        const sourceUrl = portalInfo.foreclosureUrl || portalInfo.recorderUrl || portalInfo.sourceUrl;
-        const sourceType = portalInfo.foreclosureUrl ? "json_api" : "html";
-        const notes = [
-          portalInfo.foreclosureUrl ? `Foreclosure Portal: ${portalInfo.foreclosureUrl}` : "",
-          portalInfo.recorderUrl ? `Recorder: ${portalInfo.recorderUrl}` : "",
-          portalInfo.assessorUrl ? `Assessor: ${portalInfo.assessorUrl}` : "",
-          portalInfo.phone ? `Phone: ${portalInfo.phone}` : "",
-        ]
-          .filter(Boolean)
-          .join(" | ");
-
-        await addCountyConnector(userId, {
-          county: portalInfo.county,
-          state: portalInfo.state,
-          sourceUrl,
-          sourceType,
-          notes,
-        });
-      }
-    } catch (err) {
-      console.error(`Error crawling ${url}:`, err);
-    }
+export async function crawlAndSaveSingleCounty(countyUrl: string, userId: number) {
+  const portalInfo = await scrapeCountyPortals(countyUrl);
+  if (!portalInfo) {
+    throw new Error("Could not extract portal information for the selected county.");
   }
 
+  const sourceUrl = portalInfo.foreclosureUrl || portalInfo.recorderUrl || portalInfo.sourceUrl;
+  const sourceType = portalInfo.foreclosureUrl ? "json_api" : "html";
+  const notes = [
+    portalInfo.foreclosureUrl ? `Foreclosure Portal: ${portalInfo.foreclosureUrl}` : "",
+    portalInfo.recorderUrl ? `Recorder: ${portalInfo.recorderUrl}` : "",
+    portalInfo.assessorUrl ? `Assessor: ${portalInfo.assessorUrl}` : "",
+    portalInfo.phone ? `Phone: ${portalInfo.phone}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const connectorId = await addCountyConnector(userId, {
+    county: portalInfo.county,
+    state: portalInfo.state,
+    sourceUrl,
+    sourceType,
+    notes,
+  });
+
   return {
-    state: stateCode.toUpperCase(),
-    totalDiscovered: countyUrls.length,
-    processedCount: results.length,
-    counties: results,
+    connectorId,
+    portalInfo,
   };
 }

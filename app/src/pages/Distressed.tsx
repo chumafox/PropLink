@@ -60,6 +60,59 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   pdf: "PDF",
 };
 
+const US_STATES = [
+  { code: "AL", name: "Alabama" },
+  { code: "AK", name: "Alaska" },
+  { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" },
+  { code: "CA", name: "California" },
+  { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" },
+  { code: "DE", name: "Delaware" },
+  { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" },
+  { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" },
+  { code: "IN", name: "Indiana" },
+  { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" },
+  { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" },
+  { code: "ME", name: "Maine" },
+  { code: "MD", name: "Maryland" },
+  { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" },
+  { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" },
+  { code: "MT", name: "Montana" },
+  { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" },
+  { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" },
+  { code: "NM", name: "New Mexico" },
+  { code: "NY", name: "New York" },
+  { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" },
+  { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" },
+  { code: "PA", name: "Pennsylvania" },
+  { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" },
+  { code: "SD", name: "South Dakota" },
+  { code: "TN", name: "Tennessee" },
+  { code: "TX", name: "Texas" },
+  { code: "UT", name: "Utah" },
+  { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" },
+  { code: "WA", name: "Washington" },
+  { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" },
+  { code: "WY", name: "Wyoming" },
+];
+
 export default function Distressed() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   const navigate = useNavigate();
@@ -77,7 +130,14 @@ export default function Distressed() {
 
   // NETR Crawl state
   const [netrOpen, setNetrOpen] = useState(false);
-  const [netrState, setNetrState] = useState("FL");
+  const [netrState, setNetrState] = useState("");
+  const [selectedCountyUrl, setSelectedCountyUrl] = useState("");
+
+  const { data: netrCounties, isLoading: countiesLoading } =
+    trpc.foreclosures.getNetrCounties.useQuery(
+      { state: netrState },
+      { enabled: netrState.length === 2 && netrOpen },
+    );
 
   const { data, isLoading } = trpc.foreclosures.search.useQuery(
     {
@@ -131,12 +191,13 @@ export default function Distressed() {
     onError: (e) => toast.error(e.message),
   });
 
-  const crawlNetr = trpc.foreclosures.crawlNetrState.useMutation({
+  const crawlNetrCounty = trpc.foreclosures.crawlNetrCounty.useMutation({
     onSuccess: (res) => {
       toast.success(
-        `Crawled ${res.state}: Discovered ${res.totalDiscovered} counties, processed ${res.processedCount}`,
+        `Imported ${res.portalInfo.county} County, ${res.portalInfo.state} portal links!`,
       );
       setNetrOpen(false);
+      setSelectedCountyUrl("");
       invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -173,20 +234,65 @@ export default function Distressed() {
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   <div className="space-y-1.5">
-                    <Label>State Code (2 letters)</Label>
-                    <Input
-                      placeholder="FL"
-                      maxLength={2}
+                    <Label>1. Select State</Label>
+                    <Select
                       value={netrState}
-                      onChange={(e) => setNetrState(e.target.value.toUpperCase())}
-                    />
+                      onValueChange={(val) => {
+                        setNetrState(val);
+                        setSelectedCountyUrl("");
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a US State..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {US_STATES.map((s) => (
+                          <SelectItem key={s.code} value={s.code}>
+                            {s.name} ({s.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  {netrState && (
+                    <div className="space-y-1.5">
+                      <Label>2. Select County (Single selection)</Label>
+                      <Select
+                        value={selectedCountyUrl}
+                        onValueChange={setSelectedCountyUrl}
+                        disabled={countiesLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              countiesLoading
+                                ? "Loading counties via Firecrawl..."
+                                : "Choose a County..."
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {netrCounties?.map((c) => (
+                            <SelectItem key={c.slug} value={c.url}>
+                              {c.name} County
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <Button
                     className="w-full"
-                    disabled={!netrState.trim() || crawlNetr.isPending}
-                    onClick={() => crawlNetr.mutate({ state: netrState.trim() })}
+                    disabled={!selectedCountyUrl || crawlNetrCounty.isPending}
+                    onClick={() =>
+                      crawlNetrCounty.mutate({ countyUrl: selectedCountyUrl })
+                    }
                   >
-                    {crawlNetr.isPending ? "Crawling via Firecrawl…" : "Crawl State Counties"}
+                    {crawlNetrCounty.isPending
+                      ? "Crawling Portal via Firecrawl…"
+                      : "Import Selected County Portal"}
                   </Button>
                 </div>
               </DialogContent>
