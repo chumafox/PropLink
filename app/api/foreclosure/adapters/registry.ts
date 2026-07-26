@@ -1,5 +1,6 @@
 import type { CountyScraperConfig, AdapterSyncResult } from "./types";
 import { scrapeCountyWithFirecrawl } from "./firecrawlAdapter";
+import { scrapeRealAuctionPortal } from "./realAuctionAdapter";
 import { extractArray, normalizeRow } from "../normalize";
 import type { RawForeclosureRecord } from "../connectors";
 
@@ -14,13 +15,21 @@ export const COUNTY_CONFIGS: Record<string, CountyScraperConfig> = {
       "https://www.alachuacounty.us/depts/clerk/publicrecords/pages/officialrecords.aspx",
     disclaimerRequired: true,
   },
+  "broward-fl": {
+    countyId: "broward-fl",
+    state: "FL",
+    countyName: "Broward",
+    vendorPlatform: "real_auction",
+    strategy: "custom_adapter",
+    baseUrl: "https://broward.realforeclose.com/",
+  },
   "hillsborough-fl": {
     countyId: "hillsborough-fl",
     state: "FL",
     countyName: "Hillsborough",
-    vendorPlatform: "direct_api",
-    strategy: "direct_api",
-    baseUrl: "https://www.hillsclerk.com/",
+    vendorPlatform: "real_auction",
+    strategy: "custom_adapter",
+    baseUrl: "https://www.hillsclerk.com/foreclosure-sales",
   },
   "maricopa-az": {
     countyId: "maricopa-az",
@@ -41,10 +50,7 @@ export const COUNTY_CONFIGS: Record<string, CountyScraperConfig> = {
 };
 
 /**
- * Universal County Sync Executor.
- * Routes execution based on source type and vendor configs:
- * - json_api: Direct fetch + JSON mapping.
- * - html / pdf / custom: Uses Firecrawl AI Scraper Adapter or vendor strategy.
+ * Universal Multi-Strategy County Sync Executor.
  */
 export async function executeCountySyncAdapter(connector: {
   id: number;
@@ -59,7 +65,20 @@ export async function executeCountySyncAdapter(connector: {
     throw new Error("Connector has no source URL configured.");
   }
 
-  // 1. If connector is json_api, try fetching JSON first with automatic HTML fallback
+  const lowerUrl = sourceUrl.toLowerCase();
+
+  // 1. Specialized RealAuction / GrantStreet Auction Adapter
+  if (lowerUrl.includes("realforeclose.com") || lowerUrl.includes("taxdeedauction.com")) {
+    const records = await scrapeRealAuctionPortal(sourceUrl, connector.county, connector.state);
+    return {
+      fetched: records.length,
+      valid: records.length,
+      records,
+      sourceUrl,
+    };
+  }
+
+  // 2. Direct JSON API parsing if contentType or sourceType matches JSON API
   if (connector.sourceType === "json_api") {
     try {
       const res = await fetch(sourceUrl, {
@@ -107,7 +126,7 @@ export async function executeCountySyncAdapter(connector: {
     }
   }
 
-  // 2. HTML / PDF / ASP.NET WebForms / Legacy Portals / Non-JSON fallback -> Use Firecrawl Scraper Engine
+  // 3. Fallback: Firecrawl AI Scraper Engine for HTML, PDF, ASP.NET WebForms, GovOS & Legacy Portals
   const records = await scrapeCountyWithFirecrawl(
     sourceUrl,
     connector.county,

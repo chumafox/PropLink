@@ -1,0 +1,90 @@
+{
+  "states": [
+    { "code": "AL", "name": "Alabama" },
+    { "code": "AK", "name": "Alaska" },
+    { "code": "AZ", "name": "Arizona" },
+    { "code": "AR", "name": "Arkansas" },
+    { "code": "CA", "name": "California" },
+    { "code": "CO", "name": "Colorado" },
+    { "code": "CT", "name": "Connecticut" },
+    { "code": "DE", "name": "Delaware" },
+    { "code": "FL", "name": "Florida" },
+    { "code": "GA", "name": "Georgia" },
+    { "code": "HI", "name": "Hawaii" },
+    { "code": "ID", "name": "Idaho" },
+    { "code": "IL", "name": "Illinois" },
+    { "code": "IN", "name": "Indiana" },
+    { "code": "IA", "name": "Iowa" },
+    { "code": "KS", "name": "Kansas" },
+    { "code": "KY", "name": "Kentucky" },
+    { "code": "LA", "name": "Louisiana" },
+    { "code": "ME", "name": "Maine" },
+    { "code": "MD", "name": "Maryland" },
+    { "code": "MA", "name": "Massachusetts" },
+    { "code": "MI", "name": "Michigan" },
+    { "code": "MN", "name": "Minnesota" },
+    { "code": "MS", "name": "Mississippi" },
+    { "code": "MO", "name": "Missouri" },
+    { "code": "MT", "name": "Montana" },
+    { "code": "NE", "name": "Nebraska" },
+    { "code": "NV", "name": "Nevada" },
+    { "code": "NH", "name": "New Hampshire" },
+    { "code": "NJ", "name": "New Jersey" },
+    { "code": "NM", "name": "New Mexico" },
+    { "code": "NY", "name": "New York" },
+    { "code": "NC", "name": "North Carolina" },
+    { "code": "ND", "name": "North Dakota" },
+    { "code": "OH", "name": "Ohio" },
+    { "code": "OK", "name": "Oklahoma" },
+    { "code": "OR", "name": "Oregon" },
+    { "code": "PA", "name": "Pennsylvania" },
+    { "code": "RI", "name": "Rhode Island" },
+    { "code": "SC", "name": "South Carolina" },
+    { "code": "SD", "name": "South Dakota" },
+    { "code": "TN", "name": "Tennessee" },
+    { "code": "TX", "name": "Texas" },
+    { "code": "UT", "name": "Utah" },
+    { "code": "VT", "name": "Vermont" },
+    { "code": "VA", "name": "Virginia" },
+    { "code": "WA", "name": "Washington" },
+    { "code": "WV", "name": "West Virginia" },
+    { "code": "WI", "name": "Wisconsin" },
+    { "code": "WY", "name": "Wyoming" }
+  ],
+  "counties": {
+    "FL": [
+      { "name": "Alachua", "slug": "alachua", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/FL/county/alachua" },
+      { "name": "Broward", "slug": "broward", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/broward" },
+      { "name": "Duval", "slug": "duval", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/duval" },
+      { "name": "Hillsborough", "slug": "hillsborough", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/hillsborough" },
+      { "name": "Miami-Dade", "slug": "miami-dade", "strategy": "govos_landmark", "url": "https://publicrecords.netronline.com/state/FL/county/miami-dade" },
+      { "name": "Orange", "slug": "orange", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/orange" },
+      { "name": "Palm Beach", "slug": "palm_beach", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/palm_beach" },
+      { "name": "Pinellas", "slug": "pinellas", "strategy": "real_auction", "url": "https://publicrecords.netronline.com/state/FL/county/pinellas" },
+      { "name": "Polk", "slug": "polk", "strategy": "tyler_eagle", "url": "https://publicrecords.netronline.com/state/FL/county/polk" },
+      { "name": "Sarasota", "slug": "sarasota", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/FL/county/sarasota" }
+    ],
+    "AZ": [
+      { "name": "Maricopa", "slug": "maricopa", "strategy": "direct_api", "url": "https://publicrecords.netronline.com/state/AZ/county/maricopa" },
+      { "name": "Pima", "slug": "pima", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/AZ/county/pima" },
+      { "name": "Pinal", "slug": "pinal", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/AZ/county/pinal" }
+    ],
+    "TX": [
+      { "name": "Bexar", "slug": "bexar", "strategy": "govos_landmark", "url": "https://publicrecords.netronline.com/state/TX/county/bexar" },
+      { "name": "Dallas", "slug": "dallas", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/TX/county/dallas" },
+      { "name": "Harris", "slug": "harris", "strategy": "direct_api", "url": "https://publicrecords.netronline.com/state/TX/county/harris" },
+      { "name": "Tarrant", "slug": "tarrant", "strategy": "tyler_eagle", "url": "https://publicrecords.netronline.com/state/TX/county/tarrant" },
+      { "name": "Travis", "slug": "travis", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/TX/county/travis" }
+    ],
+    "AK": [
+      { "name": "Anchorage", "slug": "anchorage", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/AK/county/anchorage" },
+      { "name": "Fairbanks North Star", "slug": "fairbanks", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/AK/county/fairbanks" }
+    ],
+    "CA": [
+      { "name": "Los Angeles", "slug": "los_angeles", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/CA/county/los_angeles" },
+      { "name": "Orange", "slug": "orange", "strategy": "govos_landmark", "url": "https://publicrecords.netronline.com/state/CA/county/orange" },
+      { "name": "Riverside", "slug": "riverside", "strategy": "tyler_eagle", "url": "https://publicrecords.netronline.com/state/CA/county/riverside" },
+      { "name": "San Diego", "slug": "san_diego", "strategy": "firecrawl_ai", "url": "https://publicrecords.netronline.com/state/CA/county/san_diego" }
+    ]
+  }
+}

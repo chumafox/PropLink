@@ -135,7 +135,7 @@ export default function Distressed() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const { data: netrCounties, isLoading: countiesLoading } =
-    trpc.foreclosures.getNetrCounties.useQuery(
+    trpc.foreclosures.getCountyDirectory.useQuery(
       { state: netrState },
       { enabled: netrState.length === 2 && netrOpen },
     );
@@ -275,9 +275,14 @@ export default function Distressed() {
                           />
                         </SelectTrigger>
                         <SelectContent className="max-h-60">
-                          {netrCounties?.map((c) => (
+                          {netrCounties?.map((c: any) => (
                             <SelectItem key={c.slug} value={c.url}>
-                              {c.name} County
+                              {c.name} County{" "}
+                              {c.strategy && (
+                                <span className="ml-1 text-[10px] text-muted-foreground">
+                                  [{c.strategy.replace("_", " ").toUpperCase()}]
+                                </span>
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>

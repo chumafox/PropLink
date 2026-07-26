@@ -163,4 +163,23 @@ export const foreclosuresRouter = createRouter({
         });
       }
     }),
+
+  getCountyDirectory: authedQuery
+    .input(z.object({ state: z.string().length(2) }))
+    .query(async ({ input }) => {
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const dirPath = path.resolve(process.cwd(), "db/county_directory.json");
+        if (fs.existsSync(dirPath)) {
+          const content = JSON.parse(fs.readFileSync(dirPath, "utf-8"));
+          const counties = content.counties?.[input.state.toUpperCase()];
+          if (counties) return counties;
+        }
+        // Fallback to NETR crawler list
+        return await getCountyListForState(input.state);
+      } catch (err) {
+        return await getCountyListForState(input.state);
+      }
+    }),
 });
