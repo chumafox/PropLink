@@ -132,6 +132,7 @@ export default function Distressed() {
   const [netrOpen, setNetrOpen] = useState(false);
   const [netrState, setNetrState] = useState("");
   const [selectedCountyUrl, setSelectedCountyUrl] = useState("");
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const { data: netrCounties, isLoading: countiesLoading } =
     trpc.foreclosures.getNetrCounties.useQuery(
@@ -171,6 +172,7 @@ export default function Distressed() {
       invalidate();
     },
     onError: (e) => toast.error(e.message),
+    onSettled: () => setSyncingId(null),
   });
 
   const addConnector = trpc.foreclosures.addConnector.useMutation({
@@ -454,13 +456,16 @@ export default function Distressed() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={sync.isPending}
-                      onClick={() => sync.mutate({ connectorId: c.id })}
+                      disabled={syncingId !== null}
+                      onClick={() => {
+                        setSyncingId(c.id);
+                        sync.mutate({ connectorId: c.id });
+                      }}
                     >
                       <RefreshCw
-                        className={`mr-1.5 h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`}
+                        className={`mr-1.5 h-3.5 w-3.5 ${syncingId === c.id ? "animate-spin" : ""}`}
                       />
-                      Sync
+                      {syncingId === c.id ? "Syncing…" : "Sync"}
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
