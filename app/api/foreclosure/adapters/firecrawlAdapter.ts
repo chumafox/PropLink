@@ -14,6 +14,24 @@ export async function scrapeCountyWithFirecrawl(
     );
   }
 
+  const lowerUrl = sourceUrl.toLowerCase();
+  const isInteractivePortal =
+    lowerUrl.includes("duprocess") ||
+    lowerUrl.includes("inquiry") ||
+    lowerUrl.includes("bakerclerk") ||
+    lowerUrl.includes("publicrecords");
+
+  const actions = isInteractivePortal
+    ? [
+        { type: "click", selector: "a.btn-success, .btn-primary, button[type='submit']" },
+        { type: "wait", milliseconds: 1500 },
+        { type: "click", selector: "#file_date_90, #file_date_30, input[value='90']" },
+        { type: "wait", milliseconds: 1000 },
+        { type: "click", selector: "a.btn-success, .btn-primary, input[value='Search']" },
+        { type: "wait", milliseconds: 6000 },
+      ]
+    : undefined;
+
   const currentYear = new Date().getFullYear();
   const prompt = `Extract all CURRENT and UPCOMING foreclosure and pre-foreclosure records (Lis Pendens, Notice of Default, Notice of Sale, Foreclosure Auction, REO) from this county public records page for ${county} County, ${state}. IMPORTANT: Only extract records with auction dates or filing dates in ${currentYear} or upcoming dates. Completely ignore expired or historical records from prior years (such as 2023, 2022). Return a list of records with caseNumber, property address, city, zip code, owner name, record type, filing date, auction date, estimated value, and opening bid.`;
 
@@ -26,7 +44,8 @@ export async function scrapeCountyWithFirecrawl(
     body: JSON.stringify({
       url: sourceUrl,
       formats: ["json"],
-      waitFor: 5000,
+      actions,
+      waitFor: isInteractivePortal ? 7000 : 5000,
       jsonOptions: {
         prompt,
         schema: {

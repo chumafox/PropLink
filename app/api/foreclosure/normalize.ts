@@ -137,9 +137,22 @@ export function normalizeRow(
   row: Record<string, unknown>,
   defaults: { county: string; state: string; sourceUrl?: string },
 ): RawForeclosureRecord | null {
-  const address = str(pick(row, "addressLine1", "address", "street_address", "site_address", "property_address", "situs"));
-  const city = str(pick(row, "city", "property_city", "site_city"));
-  if (!address || !city) return null;
+  const caseNumber = str(pick(row, "caseNumber", "case_number", "case", "instrument", "document_number", "file_number"));
+  const ownerName = str(pick(row, "ownerName", "owner_name", "owner", "grantor", "defendant"));
+
+  let address = str(pick(row, "addressLine1", "address", "street_address", "site_address", "property_address", "situs"));
+  let city = str(pick(row, "city", "property_city", "site_city")) ?? defaults.county;
+
+  // Fallback for county portals where street address is not in table view, but caseNumber / ownerName exist
+  if (!address) {
+    if (caseNumber) {
+      address = `${defaults.county} Record #${caseNumber}`;
+    } else if (ownerName) {
+      address = `${defaults.county} Parcel (${ownerName})`;
+    } else {
+      return null;
+    }
+  }
 
   const record: RawForeclosureRecord = {
     county: str(pick(row, "county")) ?? defaults.county,
