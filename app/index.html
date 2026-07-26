@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PropLink</title>
+    <meta property="og:title" content="PropLink — where offers reach decision makers" />
+    <meta property="og:description" content="Free listings for agents. Direct, trackable offers for buyers and investors. The whole deal team — one platform." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/photos/hero.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+      <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "PropLink",
+      "url": "/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": { "@type": "EntryPoint", "urlTemplate": "/listings?q={search_term_string}" },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "PropLink",
+      "description": "Real estate platform where offers reach decision makers. Free listings for agents, structured offers, deal rooms, foreclosure data, public API and MCP server.",
+      "url": "/"
+    }
+    </script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
