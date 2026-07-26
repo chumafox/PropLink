@@ -63,16 +63,6 @@ export const foreclosuresRouter = createRouter({
   stats: authedQuery.query(() => foreclosureStats()),
 
   connectors: authedQuery.query(async () => {
-    const builtIns = connectors.map((c) => ({
-      id: c.id,
-      county: c.county,
-      state: c.state,
-      sourceDescription: c.sourceDescription,
-      sourceType: "demo" as const,
-      isCustom: false,
-      ownerId: null as number | null,
-      lastSyncAt: null as Date | null,
-    }));
     const custom = (await listCountyConnectors()).map((c) => ({
       id: `db-${c.id}`,
       county: c.county,
@@ -84,7 +74,7 @@ export const foreclosuresRouter = createRouter({
       ownerId: c.userId,
       lastSyncAt: c.lastSyncAt,
     }));
-    return [...custom, ...builtIns];
+    return custom;
   }),
 
   addConnector: authedQuery
