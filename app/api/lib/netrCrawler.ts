@@ -156,7 +156,8 @@ export async function crawlAndSaveSingleCounty(countyUrl: string, userId: number
   }
 
   const sourceUrl = portalInfo.foreclosureUrl || portalInfo.recorderUrl || portalInfo.sourceUrl;
-  const sourceType = portalInfo.foreclosureUrl ? "json_api" : "html";
+  const isApi = sourceUrl.includes("/api/") || sourceUrl.endsWith(".json");
+  const sourceType = isApi ? "json_api" : "html";
   const notes = [
     portalInfo.foreclosureUrl ? `Foreclosure Portal: ${portalInfo.foreclosureUrl}` : "",
     portalInfo.recorderUrl ? `Recorder: ${portalInfo.recorderUrl}` : "",

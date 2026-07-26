@@ -59,43 +59,55 @@ export async function executeCountySyncAdapter(connector: {
     throw new Error("Connector has no source URL configured.");
   }
 
-  // 1. Check if connector matches a JSON API source
+  // 1. If connector is json_api, try fetching JSON first with automatic HTML fallback
   if (connector.sourceType === "json_api") {
-    const res = await fetch(sourceUrl, {
-      signal: AbortSignal.timeout(25000),
-      headers: { "User-Agent": "PropLink-Ingestion/1.0" },
-    });
-    if (!res.ok) {
-      throw new Error(`Direct JSON API fetch failed: HTTP ${res.status}`);
-    }
+    try {
+      const res = await fetch(sourceUrl, {
+        signal: AbortSignal.timeout(25000),
+        headers: {
+          "User-Agent": "PropLink-Ingestion/1.0",
+          Accept: "application/json",
+        },
+      });
 
-    const payload = await res.json();
-    const rows = extractArray(payload);
-    if (rows.length === 0) {
-      throw new Error(
-        "No records array found in JSON response (expected data, records, results, or items).",
+      const contentType = res.headers.get("content-type") || "";
+      const isHtmlResponse =
+        contentType.includes("text/html") || contentType.includes("application/xhtml");
+
+      if (res.ok && !isHtmlResponse) {
+        const text = await res.text();
+        if (text.trim().startsWith("{") || text.trim().startsWith("[")) {
+          const payload = JSON.parse(text);
+          const rows = extractArray(payload);
+          if (rows.length > 0) {
+            const normalized = rows
+              .map((r) =>
+                normalizeRow(r, {
+                  county: connector.county,
+                  state: connector.state,
+                  sourceUrl,
+                }),
+              )
+              .filter((r): r is RawForeclosureRecord => r !== null);
+
+            return {
+              fetched: rows.length,
+              valid: normalized.length,
+              records: normalized,
+              sourceUrl,
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(
+        `Direct JSON fetch failed for ${sourceUrl}, falling back to Firecrawl AI scraper:`,
+        err instanceof Error ? err.message : err,
       );
     }
-
-    const normalized = rows
-      .map((r) =>
-        normalizeRow(r, {
-          county: connector.county,
-          state: connector.state,
-          sourceUrl,
-        }),
-      )
-      .filter((r): r is RawForeclosureRecord => r !== null);
-
-    return {
-      fetched: rows.length,
-      valid: normalized.length,
-      records: normalized,
-      sourceUrl,
-    };
   }
 
-  // 2. HTML / PDF / ASP.NET WebForms / Legacy Portals -> Use Firecrawl Scraper Engine
+  // 2. HTML / PDF / ASP.NET WebForms / Legacy Portals / Non-JSON fallback -> Use Firecrawl Scraper Engine
   const records = await scrapeCountyWithFirecrawl(
     sourceUrl,
     connector.county,
