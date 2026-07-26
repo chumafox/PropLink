@@ -132,6 +132,7 @@ export default function Distressed() {
   const [netrOpen, setNetrOpen] = useState(false);
   const [netrState, setNetrState] = useState("");
   const [selectedCountyUrl, setSelectedCountyUrl] = useState("");
+  const [countyFilter, setCountyFilter] = useState("");
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const { data: netrCounties, isLoading: countiesLoading } =
@@ -258,8 +259,18 @@ export default function Distressed() {
                   </div>
 
                   {netrState && (
-                    <div className="space-y-1.5">
-                      <Label>2. Select County (Single selection)</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>2. Select County ({netrCounties?.length ?? 0} total)</Label>
+                        {netrCounties && netrCounties.length > 10 && (
+                          <Input
+                            placeholder="Filter county name…"
+                            className="h-7 w-44 text-xs"
+                            value={countyFilter}
+                            onChange={(e) => setCountyFilter(e.target.value)}
+                          />
+                        )}
+                      </div>
                       <Select
                         value={selectedCountyUrl}
                         onValueChange={setSelectedCountyUrl}
@@ -269,22 +280,27 @@ export default function Distressed() {
                           <SelectValue
                             placeholder={
                               countiesLoading
-                                ? "Loading counties via Firecrawl..."
+                                ? "Loading counties..."
                                 : "Choose a County..."
                             }
                           />
                         </SelectTrigger>
                         <SelectContent className="max-h-60">
-                          {netrCounties?.map((c: any) => (
-                            <SelectItem key={c.slug} value={c.url}>
-                              {c.name} County{" "}
-                              {c.strategy && (
-                                <span className="ml-1 text-[10px] text-muted-foreground">
-                                  [{c.strategy.replace("_", " ").toUpperCase()}]
-                                </span>
-                              )}
-                            </SelectItem>
-                          ))}
+                          {netrCounties
+                            ?.filter((c: any) =>
+                              !countyFilter ||
+                              c.name.toLowerCase().includes(countyFilter.toLowerCase()),
+                            )
+                            .map((c: any) => (
+                              <SelectItem key={c.slug} value={c.url}>
+                                {c.name} County{" "}
+                                {c.strategy && (
+                                  <span className="ml-1 text-[10px] text-muted-foreground">
+                                    [{c.strategy.replace("_", " ").toUpperCase()}]
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>

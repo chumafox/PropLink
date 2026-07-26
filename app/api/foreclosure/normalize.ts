@@ -11,6 +11,8 @@ const RECORD_TYPE_MAP: Record<string, ForeclosureRecordType> = {
   lis_pendens: "lis_pendens",
   lispendens: "lis_pendens",
   lp: "lis_pendens",
+  foreclosure_complaint: "lis_pendens",
+  lis_pendens_foreclosure: "lis_pendens",
   notice_of_default: "notice_of_default",
   nod: "notice_of_default",
   default: "notice_of_default",
@@ -18,10 +20,19 @@ const RECORD_TYPE_MAP: Record<string, ForeclosureRecordType> = {
   nos: "notice_of_sale",
   sale: "notice_of_sale",
   trustee_sale: "notice_of_sale",
+  notice_of_trustee_sale: "notice_of_sale",
+  notice_of_trustees_sale: "notice_of_sale",
+  nts: "notice_of_sale",
+  notice_of_foreclosure_sale: "notice_of_sale",
   auction: "auction",
   sheriff_sale: "auction",
+  tax_deed: "auction",
+  tax_deed_auction: "auction",
+  tax_certificate: "auction",
   reo: "reo",
   bank_owned: "reo",
+  certificate_of_title: "reo",
+  sheriff_deed: "reo",
 };
 
 function pick(row: Record<string, unknown>, ...keys: string[]): unknown {
