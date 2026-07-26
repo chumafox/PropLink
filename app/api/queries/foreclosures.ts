@@ -10,8 +10,21 @@ export type ForeclosureSearchInput = {
   offset?: number;
 };
 
+export async function purgeOutdatedForeclosures() {
+  const db = getDb();
+  const currentYear = new Date().getFullYear(); // 2026
+  // Delete records where auctionDate or filingDate or caseNumber has a past year (2020-2025)
+  await db
+    .delete(foreclosureRecords)
+    .where(
+      sql`${foreclosureRecords.auctionDate} LIKE '%2023%' OR ${foreclosureRecords.auctionDate} LIKE '%2024%' OR ${foreclosureRecords.auctionDate} LIKE '%2025%' OR ${foreclosureRecords.filingDate} LIKE '%2023%' OR ${foreclosureRecords.filingDate} LIKE '%2024%' OR ${foreclosureRecords.filingDate} LIKE '%2025%'`,
+    );
+}
+
 export async function searchForeclosures(input: ForeclosureSearchInput) {
   const db = getDb();
+  await purgeOutdatedForeclosures();
+
   const conds: SQL[] = [];
   if (input.county) conds.push(like(foreclosureRecords.county, `%${input.county}%`));
   if (input.state) conds.push(eq(foreclosureRecords.state, input.state));

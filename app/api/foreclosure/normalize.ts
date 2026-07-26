@@ -72,11 +72,35 @@ export function extractArray(payload: unknown): Record<string, unknown>[] {
 
 /**
  * Validates that a foreclosure record has a current/future auction date
- * or a recent filing date (not from prior years like 2023).
+ * or a recent filing date (not from prior years like 2023, 2024, 2025).
  */
 export function isFreshRecord(record: RawForeclosureRecord, maxFilingDaysOld = 180): boolean {
   const today = new Date();
+  const currentYear = today.getFullYear(); // 2026
   today.setHours(0, 0, 0, 0);
+
+  // Helper to extract 4-digit year from any date string format
+  const extractYear = (dateStr?: string): number | null => {
+    if (!dateStr) return null;
+    const match = String(dateStr).match(/\b(20\d\d)\b/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  // Reject any record with a year prior to currentYear in auctionDate or filingDate
+  const aucYear = extractYear(record.auctionDate);
+  const fileYear = extractYear(record.filingDate);
+
+  if (aucYear && aucYear < currentYear) return false;
+  if (fileYear && fileYear < currentYear) return false;
+
+  // Check raw object strings for past years (e.g. 2023, 2024, 2025)
+  if (record.raw && typeof record.raw === "object") {
+    const rawStr = JSON.stringify(record.raw);
+    const pastYearMatch = rawStr.match(/\b(202[0-5])\b/);
+    if (pastYearMatch) {
+      return false; // Reject records containing prior year timestamps (2020-2025)
+    }
+  }
 
   // 1. Validate Auction Date (Must be today or in the future)
   if (record.auctionDate) {
@@ -129,8 +153,38 @@ export function normalizeRow(
     ownerName: str(pick(row, "ownerName", "owner_name", "owner", "grantor", "defendant")),
     estimatedValue: num(pick(row, "estimatedValue", "estimated_value", "value", "avm", "assessed_value")),
     openingBid: num(pick(row, "openingBid", "opening_bid", "min_bid", "minimum_bid", "bid")),
-    auctionDate: str(pick(row, "auctionDate", "auction_date", "sale_date")),
-    filingDate: str(pick(row, "filingDate", "filing_date", "file_date", "recording_date", "recorded")),
+    auctionDate: str(
+      pick(
+        row,
+        "auctionDate",
+        "auction_date",
+        "sale_date",
+        "sale_dt",
+        "auction_dt",
+        "saleDate",
+        "auctionTime",
+        "event_date",
+      ),
+    ),
+    filingDate: str(
+      pick(
+        row,
+        "filingDate",
+        "filing_date",
+        "file_date",
+        "recording_date",
+        "recorded",
+        "doc_date",
+        "docDate",
+        "record_date",
+        "recordDate",
+        "posting_date",
+        "postingDate",
+        "date",
+        "entry_date",
+        "date_filed",
+      ),
+    ),
     lat: num(pick(row, "lat", "latitude")),
     lng: num(pick(row, "lng", "lon", "longitude")),
     raw: row,
