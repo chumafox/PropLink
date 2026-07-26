@@ -17,6 +17,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -446,18 +457,43 @@ export default function Distressed() {
                       {SOURCE_TYPE_LABELS[c.sourceType] ?? c.sourceType}
                     </Badge>
                     {c.isCustom && c.ownerId === user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() =>
-                          removeConnector.mutate({
-                            id: Number(c.id.replace("db-", "")),
-                          })
-                        }
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete Connector"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                              <Trash2 className="h-5 w-5" /> Удалить коннектор каунти?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Вы уверены, что хотите удалить коннектор для{" "}
+                              <strong className="text-foreground">{c.county} County, {c.state}</strong>?
+                              Автоматический сбор данных для этого округа будет остановлен.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() =>
+                                removeConnector.mutate({
+                                  id: Number(c.id.replace("db-", "")),
+                                })
+                              }
+                            >
+                              Да, удалить
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </div>
