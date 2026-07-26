@@ -12,12 +12,11 @@ export type ForeclosureSearchInput = {
 
 export async function purgeOutdatedForeclosures() {
   const db = getDb();
-  const currentYear = new Date().getFullYear(); // 2026
-  // Delete records where auctionDate or filingDate or caseNumber has a past year (2020-2025)
+  // Delete records where auctionDate or filingDate has a past year (2020-2025) OR matches known demo/mock records
   await db
     .delete(foreclosureRecords)
     .where(
-      sql`${foreclosureRecords.auctionDate} LIKE '%2023%' OR ${foreclosureRecords.auctionDate} LIKE '%2024%' OR ${foreclosureRecords.auctionDate} LIKE '%2025%' OR ${foreclosureRecords.filingDate} LIKE '%2023%' OR ${foreclosureRecords.filingDate} LIKE '%2024%' OR ${foreclosureRecords.filingDate} LIKE '%2025%'`,
+      sql`${foreclosureRecords.auctionDate} LIKE '%2023%' OR ${foreclosureRecords.auctionDate} LIKE '%2024%' OR ${foreclosureRecords.auctionDate} LIKE '%2025%' OR ${foreclosureRecords.filingDate} LIKE '%2023%' OR ${foreclosureRecords.filingDate} LIKE '%2024%' OR ${foreclosureRecords.filingDate} LIKE '%2025%' OR ${foreclosureRecords.caseNumber} IN ('26-CA-007712', '26-CA-006845', '2026-44712', '2026-46091', 'FC2026-04117', 'CV2026-052310', 'FC2026-04388') OR ${foreclosureRecords.addressLine1} LIKE '%Sligh Ave%' OR ${foreclosureRecords.addressLine1} LIKE '%Misty Isle%' OR ${foreclosureRecords.addressLine1} LIKE '%Pine Falls%' OR ${foreclosureRecords.addressLine1} LIKE '%Gessner Rd%' OR ${foreclosureRecords.addressLine1} LIKE '%35th Ave%' OR ${foreclosureRecords.addressLine1} LIKE '%Encanto%' OR ${foreclosureRecords.addressLine1} LIKE '%McKellips%'`,
     );
 }
 
