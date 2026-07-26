@@ -31,6 +31,7 @@ import {
   Database,
   Plus,
   Trash2,
+  Globe,
 } from "lucide-react";
 import { formatPrice, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
@@ -73,6 +74,10 @@ export default function Distressed() {
   const [fUrl, setFUrl] = useState("");
   const [fType, setFType] = useState<"json_api" | "html" | "pdf">("json_api");
   const [fNotes, setFNotes] = useState("");
+
+  // NETR Crawl state
+  const [netrOpen, setNetrOpen] = useState(false);
+  const [netrState, setNetrState] = useState("FL");
 
   const { data, isLoading } = trpc.foreclosures.search.useQuery(
     {
@@ -126,6 +131,17 @@ export default function Distressed() {
     onError: (e) => toast.error(e.message),
   });
 
+  const crawlNetr = trpc.foreclosures.crawlNetrState.useMutation({
+    onSuccess: (res) => {
+      toast.success(
+        `Crawled ${res.state}: Discovered ${res.totalDiscovered} counties, processed ${res.processedCount}`,
+      );
+      setNetrOpen(false);
+      invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   return (
     <div className="min-h-screen bg-muted/30">
       <Navbar />
@@ -141,19 +157,54 @@ export default function Distressed() {
               get a custom adapter.
             </p>
           </div>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    navigate("/login");
-                    return;
-                  }
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add county connector
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Dialog open={netrOpen} onOpenChange={setNetrOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Globe className="mr-2 h-4 w-4" /> Crawl NETR State
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Counties via NETR Directory</DialogTitle>
+                  <DialogDescription>
+                    Automatically crawl NETR Online for a US state to discover county portals, Assessor links, and Trustee Foreclosure sites.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <Label>State Code (2 letters)</Label>
+                    <Input
+                      placeholder="FL"
+                      maxLength={2}
+                      value={netrState}
+                      onChange={(e) => setNetrState(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    disabled={!netrState.trim() || crawlNetr.isPending}
+                    onClick={() => crawlNetr.mutate({ state: netrState.trim() })}
+                  >
+                    {crawlNetr.isPending ? "Crawling via Firecrawl…" : "Crawl State Counties"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      navigate("/login");
+                      return;
+                    }
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add county connector
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add county connector</DialogTitle>
@@ -248,6 +299,7 @@ export default function Distressed() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Connectors */}

@@ -16,6 +16,7 @@ import {
 import { connectors, getConnector } from "./foreclosure/connectors";
 import { extractArray, normalizeRow } from "./foreclosure/normalize";
 import { foreclosureRecordTypes } from "@db/schema";
+import { crawlAndSaveStateCounties } from "./lib/netrCrawler";
 
 async function insertNormalized(records: ReturnType<typeof normalizeRow>[]) {
   let inserted = 0;
@@ -176,5 +177,18 @@ export const foreclosuresRouter = createRouter({
       const records = await connector.fetch();
       const inserted = await insertNormalized(records);
       return { fetched: records.length, valid: records.length, inserted };
+    }),
+
+  crawlNetrState: authedQuery
+    .input(z.object({ state: z.string().length(2) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await crawlAndSaveStateCounties(input.state, ctx.user.id);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err.message || "Failed to crawl NETR Online directory",
+        });
+      }
     }),
 });
