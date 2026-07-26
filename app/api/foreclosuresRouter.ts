@@ -20,6 +20,7 @@ import {
   getCountyListForState,
   crawlAndSaveSingleCounty,
 } from "./lib/netrCrawler";
+import { executeCountySyncAdapter } from "./foreclosure/adapters/registry";
 
 async function insertNormalized(records: ReturnType<typeof normalizeRow>[]) {
   let inserted = 0;
@@ -112,8 +113,7 @@ export const foreclosuresRouter = createRouter({
     }),
 
   // Pull fresh records from a connector into the database.
-  // Built-in demos → sample data; custom json_api → real fetch + normalize;
-  // html/pdf → needs a custom scraper adapter (rejected with a clear error).
+  // Supports direct JSON APIs, built-in demos, and HTML/PDF/SPA county portals via Firecrawl Scraper Engine.
   sync: authedQuery
     .input(z.object({ connectorId: z.string() }))
     .mutation(async ({ input }) => {
@@ -122,56 +122,22 @@ export const foreclosuresRouter = createRouter({
         const dbId = Number(input.connectorId.slice(3));
         const conn = await getCountyConnector(dbId);
         if (!conn || !conn.active) throw new TRPCError({ code: "NOT_FOUND" });
-        if (conn.sourceType !== "json_api") {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message:
-              "This source type needs a custom scraper adapter (HTML/PDF parsing). json_api sources sync automatically.",
-          });
-        }
-        if (!conn.sourceUrl) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Connector has no source URL",
-          });
-        }
-        let payload: unknown;
+
         try {
-          const res = await fetch(conn.sourceUrl, {
-            signal: AbortSignal.timeout(20000),
-            headers: { "User-Agent": "PropLink-Ingestion/1.0" },
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          payload = await res.json();
-        } catch (e) {
+          const syncResult = await executeCountySyncAdapter(conn);
+          const inserted = await insertNormalized(syncResult.records);
+          await markConnectorSynced(dbId);
+          return {
+            fetched: syncResult.fetched,
+            valid: syncResult.valid,
+            inserted,
+          };
+        } catch (e: any) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Fetch failed: ${e instanceof Error ? e.message : "unknown"}`,
+            message: e.message || "Failed to sync county source",
           });
         }
-        const rows = extractArray(payload);
-        if (rows.length === 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message:
-              "No records array found in the JSON response (looked for data/records/results/items)",
-          });
-        }
-        const normalized = rows.map((r) =>
-          normalizeRow(r, {
-            county: conn.county,
-            state: conn.state,
-            sourceUrl: conn.sourceUrl ?? undefined,
-          }),
-        );
-        const valid = normalized.filter(Boolean);
-        const inserted = await insertNormalized(valid);
-        await markConnectorSynced(dbId);
-        return {
-          fetched: rows.length,
-          valid: valid.length,
-          inserted,
-        };
       }
 
       // Built-in demo connector
