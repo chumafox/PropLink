@@ -70,6 +70,45 @@ export function extractArray(payload: unknown): Record<string, unknown>[] {
   return [];
 }
 
+/**
+ * Validates that a foreclosure record has a current/future auction date
+ * or a recent filing date (not from prior years like 2023).
+ */
+export function isFreshRecord(record: RawForeclosureRecord, maxFilingDaysOld = 180): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1. Validate Auction Date (Must be today or in the future)
+  if (record.auctionDate) {
+    const aucDate = new Date(record.auctionDate);
+    if (!isNaN(aucDate.getTime())) {
+      aucDate.setHours(0, 0, 0, 0);
+      const minAllowedAuction = new Date(today);
+      minAllowedAuction.setDate(minAllowedAuction.getDate() - 2); // 2 days grace period for ongoing sales
+
+      if (aucDate < minAllowedAuction) {
+        return false; // Reject expired auction!
+      }
+    }
+  }
+
+  // 2. Validate Filing Date (Must not be older than 180 days or from past years)
+  if (record.filingDate) {
+    const fileDate = new Date(record.filingDate);
+    if (!isNaN(fileDate.getTime())) {
+      fileDate.setHours(0, 0, 0, 0);
+      const minAllowedFiling = new Date(today);
+      minAllowedFiling.setDate(minAllowedFiling.getDate() - maxFilingDaysOld);
+
+      if (fileDate < minAllowedFiling) {
+        return false; // Reject outdated filing!
+      }
+    }
+  }
+
+  return true;
+}
+
 export function normalizeRow(
   row: Record<string, unknown>,
   defaults: { county: string; state: string; sourceUrl?: string },
@@ -78,7 +117,7 @@ export function normalizeRow(
   const city = str(pick(row, "city", "property_city", "site_city"));
   if (!address || !city) return null;
 
-  return {
+  const record: RawForeclosureRecord = {
     county: str(pick(row, "county")) ?? defaults.county,
     state: str(pick(row, "state", "st")) ?? defaults.state,
     recordType: normalizeType(pick(row, "recordType", "record_type", "type", "document_type", "doc_type")),
@@ -96,4 +135,10 @@ export function normalizeRow(
     lng: num(pick(row, "lng", "lon", "longitude")),
     raw: row,
   };
+
+  if (!isFreshRecord(record)) {
+    return null;
+  }
+
+  return record;
 }

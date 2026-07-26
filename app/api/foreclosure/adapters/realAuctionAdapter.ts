@@ -1,4 +1,5 @@
 import type { RawForeclosureRecord } from "../connectors";
+import { isFreshRecord } from "../normalize";
 
 /**
  * Adapter for RealAuction / GrantStreet auction sites (e.g. county.realforeclose.com).
@@ -15,6 +16,7 @@ export async function scrapeRealAuctionPortal(
     throw new Error("FIRECRAWL_API_KEY is required to scrape RealAuction portals.");
   }
 
+  const currentYear = new Date().getFullYear();
   const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",
     headers: {
@@ -26,7 +28,7 @@ export async function scrapeRealAuctionPortal(
       formats: ["json"],
       waitFor: 6000,
       jsonOptions: {
-        prompt: `Extract all foreclosure auction items from this RealAuction grid for ${county} County, ${state}. For each item extract caseNumber, parcelId / property address, city, openingBid, estimatedValue, auctionDate, and status.`,
+        prompt: `Extract all ACTIVE and UPCOMING foreclosure auction items from this RealAuction grid for ${county} County, ${state}. IMPORTANT: Ignore past auctions from prior years (like 2023). Only extract items with auction dates in ${currentYear} or future dates. For each item extract caseNumber, parcelId / property address, city, openingBid, estimatedValue, auctionDate, and status.`,
         schema: {
           type: "object",
           properties: {
@@ -62,7 +64,7 @@ export async function scrapeRealAuctionPortal(
 
   const rawItems = resData.data?.json?.items ?? [];
 
-  return rawItems.map((item) => ({
+  const records: RawForeclosureRecord[] = rawItems.map((item) => ({
     county,
     state,
     recordType: "auction",
@@ -77,4 +79,6 @@ export async function scrapeRealAuctionPortal(
     auctionDate: (item.auctionDate as string) || undefined,
     raw: item,
   }));
+
+  return records.filter((r) => isFreshRecord(r));
 }

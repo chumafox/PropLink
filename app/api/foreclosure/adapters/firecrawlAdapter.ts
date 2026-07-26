@@ -14,7 +14,8 @@ export async function scrapeCountyWithFirecrawl(
     );
   }
 
-  const prompt = `Extract all foreclosure and pre-foreclosure records (Lis Pendens, Notice of Default, Notice of Sale, Foreclosure Auction, REO) from this county public records page for ${county} County, ${state}. Return a list of records with their case number, property address, city, zip code, owner name, record type, filing date, auction date, estimated value, and opening bid if available.`;
+  const currentYear = new Date().getFullYear();
+  const prompt = `Extract all CURRENT and UPCOMING foreclosure and pre-foreclosure records (Lis Pendens, Notice of Default, Notice of Sale, Foreclosure Auction, REO) from this county public records page for ${county} County, ${state}. IMPORTANT: Only extract records with auction dates or filing dates in ${currentYear} or upcoming dates. Completely ignore expired or historical records from prior years (such as 2023, 2022). Return a list of records with caseNumber, property address, city, zip code, owner name, record type, filing date, auction date, estimated value, and opening bid.`;
 
   const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",
