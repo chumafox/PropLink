@@ -16,7 +16,7 @@ export async function addCountyConnector(
     county: string;
     state: string;
     sourceUrl?: string;
-    sourceType: "json_api" | "html" | "pdf";
+    sourceType: "json_api" | "html" | "pdf" | "spa";
     notes?: string;
   },
 ) {

@@ -1,6 +1,7 @@
 import type { CountyScraperConfig, AdapterSyncResult } from "./types";
 import { scrapeCountyWithFirecrawl } from "./firecrawlAdapter";
 import { scrapeRealAuctionPortal } from "./realAuctionAdapter";
+import { scrapeSpaPortal } from "./playwrightSpaAdapter";
 import { extractArray, normalizeRow } from "../normalize";
 import type { RawForeclosureRecord } from "../connectors";
 
@@ -31,6 +32,15 @@ export const COUNTY_CONFIGS: Record<string, CountyScraperConfig> = {
     strategy: "custom_adapter",
     baseUrl: "https://www.hillsclerk.com/foreclosure-sales",
   },
+  "baker-fl": {
+    countyId: "baker-fl",
+    state: "FL",
+    countyName: "Baker",
+    vendorPlatform: "duprocess_spa",
+    strategy: "playwright_spa",
+    baseUrl: "https://recording.bakerclerk.com/DuProcessWebInquiry/index.html",
+    disclaimerRequired: true,
+  },
   "maricopa-az": {
     countyId: "maricopa-az",
     state: "AZ",
@@ -50,7 +60,30 @@ export const COUNTY_CONFIGS: Record<string, CountyScraperConfig> = {
 };
 
 /**
+ * Detects if a URL points to a SPA-based portal that requires headless browser execution.
+ * These portals use Angular/React and cannot be scraped by simple HTTP fetch or Firecrawl static scrape.
+ */
+function isSpaPortal(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("duprocess") ||
+    lower.includes("duprocessweb") ||
+    lower.includes("bakerclerk.com") ||
+    lower.includes("iasworld") ||
+    lower.includes("tylertech") ||
+    lower.includes("eagleweb") ||
+    lower.includes("grantstreet") && lower.includes("/app/")
+  );
+}
+
+/**
  * Universal Multi-Strategy County Sync Executor.
+ *
+ * Priority order:
+ * 1. RealAuction / GrantStreet realforeclose.com  → realAuctionAdapter
+ * 2. SPA portals (DuProcess, Tyler Eagle, etc.)   → playwrightSpaAdapter (headless Chromium)
+ * 3. Direct JSON API endpoints                    → native fetch + JSON parse
+ * 4. HTML / PDF / ASP.NET / GovOS / Legacy        → firecrawlAdapter (Firecrawl AI)
  */
 export async function executeCountySyncAdapter(connector: {
   id: number;
@@ -78,7 +111,19 @@ export async function executeCountySyncAdapter(connector: {
     };
   }
 
-  // 2. Direct JSON API parsing if contentType or sourceType matches JSON API
+  // 2. SPA Portal (DuProcess, Tyler Eagle) → Playwright headless browser
+  if (isSpaPortal(sourceUrl) || connector.sourceType === "spa") {
+    console.log(`[Registry] Using Playwright SPA adapter for ${sourceUrl}`);
+    const records = await scrapeSpaPortal(sourceUrl, connector.county, connector.state);
+    return {
+      fetched: records.length,
+      valid: records.length,
+      records,
+      sourceUrl,
+    };
+  }
+
+  // 3. Direct JSON API parsing if contentType or sourceType matches JSON API
   if (connector.sourceType === "json_api") {
     try {
       const res = await fetch(sourceUrl, {
@@ -126,7 +171,7 @@ export async function executeCountySyncAdapter(connector: {
     }
   }
 
-  // 3. Fallback: Firecrawl AI Scraper Engine for HTML, PDF, ASP.NET WebForms, GovOS & Legacy Portals
+  // 4. Fallback: Firecrawl AI Scraper Engine for HTML, PDF, ASP.NET WebForms, GovOS & Legacy Portals
   const records = await scrapeCountyWithFirecrawl(
     sourceUrl,
     connector.county,

@@ -69,7 +69,7 @@ export const foreclosuresRouter = createRouter({
       state: c.state,
       sourceDescription:
         c.sourceUrl ?? c.notes ?? "Custom county source",
-      sourceType: c.sourceType as "json_api" | "html" | "pdf",
+      sourceType: c.sourceType as "json_api" | "html" | "pdf" | "spa",
       isCustom: true,
       ownerId: c.userId,
       lastSyncAt: c.lastSyncAt,
@@ -83,7 +83,7 @@ export const foreclosuresRouter = createRouter({
         county: z.string().min(1).max(128),
         state: z.string().min(1).max(64),
         sourceUrl: z.string().url().optional().or(z.literal("")),
-        sourceType: z.enum(["json_api", "html", "pdf"]).default("json_api"),
+        sourceType: z.enum(["json_api", "html", "pdf", "spa"]).default("json_api"),
         notes: z.string().max(500).optional(),
       }),
     )

@@ -69,6 +69,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   json_api: "JSON API",
   html: "HTML page",
   pdf: "PDF",
+  spa: "SPA Portal (Playwright)",
 };
 
 const US_STATES = [
@@ -136,7 +137,7 @@ export default function Distressed() {
   const [fCounty, setFCounty] = useState("");
   const [fState, setFState] = useState("");
   const [fUrl, setFUrl] = useState("");
-  const [fType, setFType] = useState<"json_api" | "html" | "pdf">("json_api");
+  const [fType, setFType] = useState<"json_api" | "html" | "pdf" | "spa">("json_api");
   const [fNotes, setFNotes] = useState("");
 
   // NETR Crawl state
@@ -385,10 +386,13 @@ export default function Distressed() {
                         JSON API — syncs automatically
                       </SelectItem>
                       <SelectItem value="html">
-                        HTML page — needs custom adapter
+                        HTML — Firecrawl AI scraper
                       </SelectItem>
                       <SelectItem value="pdf">
-                        PDF — needs custom adapter
+                        PDF — Firecrawl AI scraper
+                      </SelectItem>
+                      <SelectItem value="spa">
+                        SPA Portal — Playwright browser (DuProcess, Tyler Eagle)
                       </SelectItem>
                     </SelectContent>
                   </Select>
