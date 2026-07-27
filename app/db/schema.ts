@@ -533,7 +533,7 @@ export const countyConnectors = mysqlTable(
     county: varchar("county", { length: 128 }).notNull(),
     state: varchar("state", { length: 64 }).notNull(),
     sourceUrl: text("sourceUrl"),
-    sourceType: mysqlEnum("sourceType", ["json_api", "html", "pdf"])
+    sourceType: mysqlEnum("sourceType", ["json_api", "html", "pdf", "spa"])
       .default("json_api")
       .notNull(),
     notes: varchar("notes", { length: 500 }),
