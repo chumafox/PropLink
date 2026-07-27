@@ -35,6 +35,36 @@ const RECORD_TYPE_MAP: Record<string, ForeclosureRecordType> = {
   sheriff_deed: "reo",
 };
 
+/**
+ * Document types that are NOT foreclosure-related and must be filtered out.
+ * DuProcess and similar county portals return all recorded documents —
+ * we only want pre-foreclosure / distressed property records.
+ */
+const NON_FORECLOSURE_TYPES = new Set([
+  "deed",
+  "warranty_deed",
+  "quit_claim_deed",
+  "quitclaim_deed",
+  "grant_deed",
+  "special_warranty_deed",
+  "trustee_deed",  // ← post-foreclosure conveyance, not a filing event
+  "mortgage",
+  "release_of_mortgage",
+  "satisfaction_of_mortgage",
+  "lien",
+  "release_of_lien",
+  "mechanics_lien",
+  "judgment",
+  "partial_release",
+  "easement",
+  "affidavit",
+  "assignment",
+  "power_of_attorney",
+  "plat",
+  "agreement",
+  "notice", // generic notice — not specific enough
+]);
+
 function pick(row: Record<string, unknown>, ...keys: string[]): unknown {
   for (const k of keys) {
     if (row[k] != null && row[k] !== "") return row[k];
@@ -49,14 +79,41 @@ function str(v: unknown): string | undefined {
 function num(v: unknown): number | undefined {
   if (v == null || v === "") return undefined;
   const n = Number(String(v).replace(/[$,\s]/g, ""));
-  return Number.isFinite(n) ? n : undefined;
+  // Treat 0 as missing — county portals often return 0 when data is unavailable
+  if (!Number.isFinite(n) || n === 0) return undefined;
+  return n;
 }
 
-function normalizeType(v: unknown): ForeclosureRecordType {
-  const key = String(v ?? "")
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  return RECORD_TYPE_MAP[key] ?? RECORD_TYPE_MAP[key.replace(/_/g, "")] ?? "lis_pendens";
+/**
+ * Returns the canonical ForeclosureRecordType or null if the document type
+ * is not foreclosure-related (e.g. DEED, MORTGAGE, LIEN).
+ */
+function normalizeType(v: unknown): ForeclosureRecordType | null {
+  const raw = String(v ?? "").trim();
+  if (!raw) return null; // no type info → skip
+
+  const key = raw.toLowerCase().replace(/[\s\-/]+/g, "_");
+  const keyNoUnder = key.replace(/_/g, "");
+
+  // Explicit rejection of non-foreclosure document types
+  if (NON_FORECLOSURE_TYPES.has(key) || NON_FORECLOSURE_TYPES.has(keyNoUnder)) {
+    return null;
+  }
+
+  // Try direct map lookup
+  const mapped = RECORD_TYPE_MAP[key] ?? RECORD_TYPE_MAP[keyNoUnder];
+  if (mapped) return mapped;
+
+  // Fuzzy keyword detection for verbose county doc type names
+  if (key.includes("lis_pendens") || key.includes("lispendens")) return "lis_pendens";
+  if (key.includes("foreclos")) return "lis_pendens";
+  if (key.includes("notice_of_default") || key.includes("nod")) return "notice_of_default";
+  if (key.includes("notice_of_sale") || key.includes("trustee_sale")) return "notice_of_sale";
+  if (key.includes("auction") || key.includes("sheriff_sale")) return "auction";
+  if (key.includes("reo") || key.includes("bank_owned")) return "reo";
+
+  // Unknown type — reject rather than silently mislabel as lis_pendens
+  return null;
 }
 
 export function extractArray(payload: unknown): Record<string, unknown>[] {
@@ -154,10 +211,17 @@ export function normalizeRow(
     }
   }
 
+  const resolvedType = normalizeType(
+    pick(row, "recordType", "record_type", "type", "document_type", "doc_type"),
+  );
+
+  // Skip non-foreclosure document types (DEED, MORTGAGE, LIEN, etc.)
+  if (resolvedType === null) return null;
+
   const record: RawForeclosureRecord = {
     county: str(pick(row, "county")) ?? defaults.county,
     state: str(pick(row, "state", "st")) ?? defaults.state,
-    recordType: normalizeType(pick(row, "recordType", "record_type", "type", "document_type", "doc_type")),
+    recordType: resolvedType,
     caseNumber: str(pick(row, "caseNumber", "case_number", "case", "instrument", "document_number", "file_number")),
     sourceUrl: str(pick(row, "sourceUrl", "source_url", "url", "link")) ?? defaults.sourceUrl,
     addressLine1: address,

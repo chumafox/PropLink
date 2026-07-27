@@ -33,7 +33,14 @@ export async function scrapeCountyWithFirecrawl(
     : undefined;
 
   const currentYear = new Date().getFullYear();
-  const prompt = `Extract all CURRENT and UPCOMING foreclosure and pre-foreclosure records (Lis Pendens, Notice of Default, Notice of Sale, Foreclosure Auction, REO) from this county public records page for ${county} County, ${state}. IMPORTANT: Only extract records with auction dates or filing dates in ${currentYear} or upcoming dates. Completely ignore expired or historical records from prior years (such as 2023, 2022). Return a list of records with caseNumber, property address, city, zip code, owner name, record type, filing date, auction date, estimated value, and opening bid.`;
+  const prompt = [
+    `Extract ONLY foreclosure and pre-foreclosure records from this county public records portal for ${county} County, ${state}.`,
+    `INCLUDE ONLY these document types: Lis Pendens, Notice of Default (NOD), Notice of Sale (NOS), Notice of Trustee Sale (NTS), Foreclosure, Foreclosure Complaint, Sheriff Sale, Tax Deed Sale, REO.`,
+    `STRICTLY EXCLUDE: Deed, Warranty Deed, Quit Claim Deed, Mortgage, Release of Mortgage, Satisfaction, Lien, Judgment, Affidavit, Assignment, Easement, Plat, Agreement, and any other non-foreclosure document types.`,
+    `IMPORTANT: Only include records with filing dates or auction dates in ${currentYear} or future years. Skip anything dated ${currentYear - 1} or earlier.`,
+    `For each qualifying record return: caseNumber, recordType (exact document type from the portal), addressLine1 (property street address), city, zip, ownerName, filingDate, auctionDate, estimatedValue, openingBid.`,
+    `If the address field is empty or unavailable, still include the record with an empty addressLine1.`,
+  ].join(" ");
 
   const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",
