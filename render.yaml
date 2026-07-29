@@ -29,3 +29,7 @@ services:
           type: web
           name: proplink-app
           envVarKey: APP_ID
+      - key: KIMI_AUTH_URL
+        value: https://auth.kimi.com
+      - key: KIMI_OPEN_URL
+        value: https://open.kimi.com
