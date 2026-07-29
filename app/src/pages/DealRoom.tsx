@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router";
 import Navbar from "@/components/Navbar";
 import { trpc } from "@/providers/trpc";
 import { uploadFileWithClient } from "@/lib/upload";
+import { safeUrl } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -276,7 +277,7 @@ export default function DealRoom() {
                 {documents.map(({ doc, uploaderName }) => (
                   <a
                     key={doc.id}
-                    href={doc.url}
+                    href={safeUrl(doc.url)}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/40"

@@ -68,6 +68,9 @@ export async function respondToOffer(
 ) {
   const found = await findOfferWithListing(offerId);
   if (!found || found.listing.ownerId !== ownerId) return null;
+  if (!["submitted", "under_review"].includes(found.offer.status)) {
+    return null;
+  }
   await getDb()
     .update(offers)
     .set({

@@ -43,32 +43,31 @@ export async function processTelegramWebhook(body: any, verifyToken?: string) {
   const senderName = msg.from.first_name || msg.from.username || "Telegram User";
   
   const shadowUser = await ensureShadowUser(
-    conn.userId,
+    "telegram",
     senderId,
     senderName,
   );
   
   const conv = await ensureChannelConversation(
-    conn,
+    conn.id,
+    "telegram",
     externalThreadId,
-    shadowUser,
+    conn.userId,
+    shadowUser.id,
   );
   
-  await ingestExternalMessage(
-    conn.userId,
-    conv.id,
-    shadowUser.id,
-    msg.text,
-    [],
-    String(msg.message_id),
-  );
+  await ingestExternalMessage({
+    conversationId: conv.id,
+    senderUserId: shadowUser.id,
+    body: msg.text,
+    externalId: String(msg.message_id),
+  });
   
   await touchConnection(conn.id);
-  await createNotification({
-    userId: conn.userId,
+  await createNotification(conn.userId, {
     type: "new_message",
     title: `Telegram: ${senderName}`,
     body: msg.text.slice(0, 100),
-    data: { conversationId: conv.id },
+    link: `/messages/${conv.id}`,
   });
 }

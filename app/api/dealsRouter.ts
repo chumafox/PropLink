@@ -92,7 +92,7 @@ export const dealsRouter = createRouter({
       void createNotification(otherId, {
         type: "deal_status",
         title: `Deal status: ${input.status.replace("_", " ")}`,
-        body: room.listing.title,
+        body: room.listing.title ?? undefined,
         link: `/deals/${room.deal.id}`,
       }).catch(() => {});
       return room;

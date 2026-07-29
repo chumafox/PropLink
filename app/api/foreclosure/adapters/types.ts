@@ -1,4 +1,3 @@
-import type { ForeclosureRecordType } from "@db/schema";
 import type { RawForeclosureRecord } from "../connectors";
 
 export type VendorPlatform =
@@ -7,14 +6,15 @@ export type VendorPlatform =
   | "real_auction"
   | "aspnet_webforms"
   | "firecrawl_ai"
-  | "direct_api";
+  | "direct_api"
+  | "duprocess_spa";
 
 export interface CountyScraperConfig {
   countyId: string; // e.g. "alachua-fl"
   state: string;
   countyName: string;
   vendorPlatform: VendorPlatform;
-  strategy: "direct_api" | "aspnet_webforms" | "firecrawl_ai" | "custom_adapter";
+  strategy: "direct_api" | "aspnet_webforms" | "firecrawl_ai" | "custom_adapter" | "playwright_spa";
   baseUrl: string;
   disclaimerRequired?: boolean;
   disclaimerUrl?: string;

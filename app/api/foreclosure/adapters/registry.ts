@@ -76,6 +76,8 @@ function isSpaPortal(url: string): boolean {
   );
 }
 
+import { checkUrlSSRF } from "../../lib/security";
+
 /**
  * Universal Multi-Strategy County Sync Executor.
  *
@@ -97,6 +99,9 @@ export async function executeCountySyncAdapter(connector: {
   if (!sourceUrl) {
     throw new Error("Connector has no source URL configured.");
   }
+
+  // Validate URL to prevent SSRF vulnerabilities
+  await checkUrlSSRF(sourceUrl);
 
   const lowerUrl = sourceUrl.toLowerCase();
 

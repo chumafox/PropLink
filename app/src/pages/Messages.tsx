@@ -32,7 +32,7 @@ import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { timeAgo } from "@/lib/format";
 import { TranslatedMessageText } from "@/components/TranslatedMessageText";
 import { uploadFileWithClient, attachmentKind } from "@/lib/upload";
-import { cn } from "@/lib/utils";
+import { cn, safeUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Attachment } from "@contracts/types";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -608,18 +608,18 @@ const FloatingFilePreview = ({ file, onClose, onDelete }: { file: { url: string;
                <FileAudio className="w-8 h-8 text-primary" />
             </div>
             <p className="font-semibold mb-8 truncate w-full text-foreground/90">{file.name}</p>
-            <audio controls src={file.url} className="w-full max-w-[280px]" onMouseDown={(e) => e.stopPropagation()} />
+            <audio controls src={safeUrl(file.url)} className="w-full max-w-[280px]" onMouseDown={(e) => e.stopPropagation()} />
           </div>
         ) : file.kind === "image" ? (
-          <img src={file.url} alt={file.name} className="w-full h-full object-contain" />
+          <img src={safeUrl(file.url)} alt={file.name} className="w-full h-full object-contain" />
         ) : (file?.name || "").toLowerCase().endsWith(".pdf") ? (
-          <iframe src={file.url} className="w-full h-full border-0" />
+          <iframe src={safeUrl(file.url)} className="w-full h-full border-0" />
         ) : (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <FileIcon className="w-16 h-16 text-muted-foreground mb-4" />
             <p className="font-semibold mb-4 truncate w-full">{file.name}</p>
             <Button asChild onMouseDown={(e) => e.stopPropagation()}>
-              <a href={file.url} target="_blank" download>Open File</a>
+              <a href={safeUrl(file.url)} target="_blank" download>Open File</a>
             </Button>
           </div>
         )}
@@ -1130,7 +1130,7 @@ export default function Messages() {
                           variant="ghost" 
                           size="icon" 
                           className="shrink-0" 
-                          title={relatedListings[0].title}
+                          title={relatedListings[0].title ?? undefined}
                           onClick={() => setPreviewListingId(activeConv.conversation.listingId!)}
                         >
                           <Home className="h-5 w-5 text-primary" />
@@ -1230,7 +1230,7 @@ export default function Messages() {
                           ) : (
                             <a
                               key={i}
-                              href={a.url}
+                              href={safeUrl(a.url)}
                               target="_blank"
                               rel="noreferrer"
                               className={cn(

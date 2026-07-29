@@ -1,5 +1,3 @@
-import { env } from "../../env";
-
 export async function fetchZillowPropertyByAddress(address: string) {
   const apiKey = process.env.ZILLOW_RAPIDAPI_KEY;
   if (!apiKey) {
@@ -22,7 +20,7 @@ export async function fetchZillowPropertyByAddress(address: string) {
     throw new Error(`Zillow API error ${res.status}: ${text}`);
   }
 
-  const data = await res.json();
+  const data = (await res.json()) as any;
   if (!data?.propertyDetails || Object.keys(data.propertyDetails).length === 0) {
     throw new Error("Property not found on Zillow for this address");
   }

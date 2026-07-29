@@ -13,14 +13,16 @@ import {
   markConnectorSynced,
   getCountyConnector,
 } from "./queries/countyConnectors";
-import { connectors, getConnector } from "./foreclosure/connectors";
-import { extractArray, normalizeRow } from "./foreclosure/normalize";
+import { getConnector } from "./foreclosure/connectors";
+import { normalizeRow } from "./foreclosure/normalize";
 import { foreclosureRecordTypes } from "@db/schema";
 import {
   getCountyListForState,
   crawlAndSaveSingleCounty,
 } from "./lib/netrCrawler";
 import { executeCountySyncAdapter } from "./foreclosure/adapters/registry";
+
+import { checkUrlSSRF } from "./lib/security";
 
 async function insertNormalized(records: ReturnType<typeof normalizeRow>[]) {
   let inserted = 0;
@@ -88,6 +90,9 @@ export const foreclosuresRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.sourceUrl) {
+        await checkUrlSSRF(input.sourceUrl);
+      }
       const id = await addCountyConnector(ctx.user.id, {
         ...input,
         sourceUrl: input.sourceUrl || undefined,

@@ -105,6 +105,7 @@ export const listings = mysqlTable(
   {
     id: serial("id").primaryKey(),
     ownerId: bigint("ownerId", { mode: "number", unsigned: true }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }),
     description: text("description"),
     propertyType: mysqlEnum("propertyType", propertyTypes)
       .default("house")
@@ -250,6 +251,7 @@ export const conversations = mysqlTable(
       "instagram",
       "whatsapp",
       "x",
+      "telegram",
     ])
       .default("internal")
       .notNull(),

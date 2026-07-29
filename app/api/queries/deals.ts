@@ -6,10 +6,11 @@ import {
   offers,
   listings,
   users,
+  conversations,
+  conversationParticipants,
 } from "@db/schema";
 import { resolveFileUrl } from "../uploads";
 import { and, desc, eq, or, sql } from "drizzle-orm";
-import { createConversation } from "./messaging";
 
 const DEFAULT_TASKS: { title: string; assigneeRole: string }[] = [
   { title: "Signed purchase agreement", assigneeRole: "agent" },

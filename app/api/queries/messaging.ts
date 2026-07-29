@@ -93,7 +93,7 @@ export async function listConversationsForUser(userId: number) {
       );
 
     let listingTitle: string | null = null;
-    let relatedListings: Array<{ id: number; title: string }> = [];
+    let relatedListings: Array<{ id: number; title: string | null }> = [];
 
     if (conversation.listingId) {
       const [l] = await db

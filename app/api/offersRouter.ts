@@ -83,7 +83,11 @@ export const offersRouter = createRouter({
       if (!row) throw new TRPCError({ code: "FORBIDDEN" });
       // Accepted offer → automatically spin up a Deal Room with a shared chat
       if (input.status === "accepted") {
-        void createDealRoomFromOffer(row.id).catch(() => {});
+        try {
+          await createDealRoomFromOffer(row.id);
+        } catch (err) {
+          console.error(`Failed to create deal room for offer ${row.id}:`, err);
+        }
       }
       void dispatchWebhookEvent([row.buyerId], "offer.status_changed", row);
       void createNotification(row.buyerId, {

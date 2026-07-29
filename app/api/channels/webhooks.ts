@@ -45,18 +45,23 @@ channelWebhooks.post("/meta", async (c) => {
           : null;
   if (!channel) return c.text("EVENT_IGNORED", 200);
 
-  // Signature check: find the connection this payload targets; if the owner
-  // stored their Meta app secret, X-Hub-Signature-256 must validate.
+  // Signature check: fail-closed validation. Connection & App Secret MUST exist,
+  // and X-Hub-Signature-256 MUST validate.
   const extId = extractExternalAccountId(body, channel);
-  if (extId) {
-    const conn = await findConnectionByExternalId(channel, extId);
-    const secret = conn ? connectionAppSecret(conn) : null;
-    if (secret) {
-      const sig = c.req.header("x-hub-signature-256");
-      if (!isValidMetaSignature(raw, sig, secret)) {
-        return c.text("Invalid signature", 401);
-      }
-    }
+  if (!extId) return c.text("EVENT_IGNORED", 200);
+
+  const conn = await findConnectionByExternalId(channel, extId);
+  if (!conn) return c.text("Connection not found", 404);
+
+  const secret = connectionAppSecret(conn);
+  if (!secret) {
+    console.warn(`[channels] ${channel} webhook rejected: missing App Secret for connection ${conn.id}`);
+    return c.text("App Secret required", 401);
+  }
+
+  const sig = c.req.header("x-hub-signature-256");
+  if (!isValidMetaSignature(raw, sig, secret)) {
+    return c.text("Invalid signature", 401);
   }
 
   try {

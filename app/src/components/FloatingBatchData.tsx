@@ -80,21 +80,12 @@ export const FloatingBatchData = ({
         body: JSON.stringify({ address })
       });
 
-      let data;
       if (!res.ok) {
-        // Fallback mock data for demonstration if API fails due to auth
-        toast.error("API Auth failed, using mock data for demonstration.");
-        data = {
-          valuation: { estimatedEquity: 307148 },
-          tax: { taxAmount: 5887.34 },
-          openLien: { totalOpenLienBalance: 422452 },
-          intel: { arv: 800000 },
-          owner: { fullName: "Jordan R Singer; Jennifer M Singer" }
-        };
-      } else {
-        const json = await res.json();
-        data = json?.data?.[0];
+        toast.error(`BatchData API error (${res.status}). Please check API configuration.`);
+        return;
       }
+      const json = await res.json();
+      const data = json?.data?.[0];
 
       if (data) {
         saveBatchData.mutate({

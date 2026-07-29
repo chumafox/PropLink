@@ -1,6 +1,9 @@
 import type { RawForeclosureRecord } from "../connectors";
 import { isFreshRecord, normalizeRow } from "../normalize";
 
+declare const document: any;
+declare const HTMLElement: any;
+
 /**
  * Playwright-based headless browser adapter for SPA portals (Angular/React).
  * Handles DuProcess, Tyler Eagle SPA, GovOS portals, and other JS-heavy sites.
@@ -136,8 +139,10 @@ async function scrapeDuProcess(
   const rawData = await page.evaluate(() => {
     const rows: Record<string, string>[] = [];
     // Standard HTML table rows
-    document.querySelectorAll("table tbody tr").forEach((tr) => {
-      const cells = Array.from(tr.querySelectorAll("td")).map((td) => td.innerText.trim());
+    document.querySelectorAll("table tbody tr").forEach((tr: any) => {
+      const cells = Array.from(tr.querySelectorAll("td")).map((td: any) =>
+        String(td?.innerText || "").trim(),
+      );
       if (cells.length >= 3) {
         rows.push({
           col0: cells[0] || "",
@@ -154,12 +159,12 @@ async function scrapeDuProcess(
 
     // Angular material table / data grid rows
     if (rows.length === 0) {
-      document.querySelectorAll("mat-row, .ag-row, [role='row']").forEach((row) => {
+      document.querySelectorAll("mat-row, .ag-row, [role='row']").forEach((row: any) => {
         const cells = Array.from(
           row.querySelectorAll("mat-cell, .ag-cell, [role='gridcell']"),
-        ).map((c) => (c as HTMLElement).innerText?.trim() || "");
+        ).map((c: any) => String((c as any)?.innerText || "").trim());
         if (cells.length >= 2) {
-          rows.push(Object.fromEntries(cells.map((c, i) => [`col${i}`, c])));
+          rows.push(Object.fromEntries(cells.map((c: string, i: number) => [`col${i}`, c])));
         }
       });
     }
@@ -287,12 +292,12 @@ async function scrapeGenericSpa(
   if (out.length === 0) {
     const tableData = await page.evaluate(() => {
       const rows: Record<string, string>[] = [];
-      document.querySelectorAll("table tbody tr").forEach((tr) => {
-        const cells = Array.from(tr.querySelectorAll("td")).map((td) =>
-          (td as HTMLElement).innerText.trim(),
+      document.querySelectorAll("table tbody tr").forEach((tr: any) => {
+        const cells = Array.from(tr.querySelectorAll("td")).map((td: any) =>
+          String((td as any)?.innerText || "").trim(),
         );
         if (cells.length >= 2)
-          rows.push(Object.fromEntries(cells.map((c, i) => [`col${i}`, c])));
+          rows.push(Object.fromEntries(cells.map((c: string, i: number) => [`col${i}`, c])));
       });
       return rows;
     });
