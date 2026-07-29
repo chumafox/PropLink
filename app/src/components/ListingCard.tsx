@@ -51,7 +51,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
               </span>
             )}
           </div>
-          <h3 className="mt-1.5 line-clamp-1 font-semibold">{listing.addressLine1}</h3>
+          <h3 className="mt-1.5 line-clamp-1 font-semibold">{listing.title || listing.addressLine1}</h3>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             <span className="line-clamp-1">

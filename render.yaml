@@ -1,0 +1,32 @@
+# Render Blueprint Specification for PropLink (Full-Stack + TiDB Cloud)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: proplink-app
+    env: node
+    plan: free
+    region: singapore # or frankfurt/oregon
+    rootDir: app
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # User enters TiDB Cloud connection string: mysql://2uqhoWmWLmFcJEY.root:<PASSWORD>@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/proplink?ssl={"rejectUnauthorized":false}
+      - key: APP_ID
+        generateValue: true
+      - key: APP_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VITE_APP_ID
+        fromService:
+          type: web
+          name: proplink-app
+          property: envVar
+          envVarKey: APP_ID

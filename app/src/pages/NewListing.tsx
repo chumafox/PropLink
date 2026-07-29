@@ -32,6 +32,7 @@ export default function NewListing() {
   const editId = params.get("edit") ? Number(params.get("edit")) : null;
 
   const [form, setForm] = useState({
+    title: "",
     description: "",
     propertyType: "house",
     status: "active",
@@ -90,6 +91,7 @@ export default function NewListing() {
     if (existing?.listing) {
       const l = existing.listing;
       setForm({
+        title: l.title ?? "",
         description: l.description ?? "",
         propertyType: l.propertyType,
         status: l.status,
@@ -133,6 +135,7 @@ export default function NewListing() {
 
   const submit = () => {
     const payload = {
+      title: form.title,
       description: form.description || undefined,
       propertyType: form.propertyType as any,
       status: form.status as any,
@@ -213,6 +216,14 @@ export default function NewListing() {
 
         <Card className="mt-6 border-0 shadow-sm">
           <CardContent className="space-y-5 p-6">
+            <div className="space-y-1.5">
+              <Label>Title *</Label>
+              <Input
+                placeholder="Beautiful Family Home"
+                value={form.title}
+                onChange={(e) => set("title")(e.target.value)}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label>Price, $ *</Label>
@@ -443,6 +454,7 @@ export default function NewListing() {
               size="lg"
               disabled={
                 pending ||
+                !form.title ||
                 !form.price ||
                 !form.addressLine1 ||
                 !form.city ||

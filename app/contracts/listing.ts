@@ -2,6 +2,7 @@ import { z } from "zod";
 
 // Shared validation schema for a listing (create form + CSV/JSON import rows)
 export const listingInputSchema = z.object({
+  title: z.string().min(1).max(255),
   description: z.string().max(20000).optional(),
   propertyType: z
     .enum(["house", "condo", "townhouse", "multi_family", "land", "apartment"])
@@ -56,6 +57,7 @@ export function coerceImportRow(raw: Record<string, unknown>): unknown {
   };
 
   return {
+    title: str(raw.title) ?? "Untitled Listing",
     description: str(raw.description),
     propertyType: str(raw.propertyType ?? raw.property_type) ?? "house",
     status: str(raw.status) ?? "active",

@@ -1,82 +1,39 @@
-# PropLink Project Audit (AGY_AUDIT.md)
+# PropLink Security and Architecture Audit (AGY)
 
-**Date**: July 28, 2026  
-**Repository**: [PropLink](file:///Users/jenyanovak/Projects/active/PropLink)  
-**Status**: Active / Production-Ready Core  
+## 1. Overview
+This audit reflects the state of the PropLink codebase following a comprehensive review and remediation phase. The system acts as a real estate and deal management platform, utilizing TRPC for API routes, Drizzle ORM for database interactions, and various external integrations (Foreclosure scrapers, Meta webhooks, BatchData API).
 
----
+The primary goal of this audit was to ensure stability and security, specifically addressing concerns regarding type safety, asynchronous error handling, SSRF (Server-Side Request Forgery), and XSS (Cross-Site Scripting).
 
-## 1. Executive Summary
+## 2. Resolved Issues (Post K3 Audit)
+The following critical and high-priority issues have been successfully resolved:
 
-PropLink is a full-stack real estate transaction, B2B marketplace, and nationwide distressed property / foreclosure ingestion platform. 
+*   **Type Safety & Database Schema Integrity**: 
+    *   Resolved over 60 TypeScript compilation errors.
+    *   Restored the missing `title` column in the `listings` table, preventing runtime query crashes.
+*   **SSRF Protection**: 
+    *   Implemented strict URL validation (`checkUrlSSRF`) in `executeCountySyncAdapter` and `addConnector` to prevent unauthorized internal network scanning via the foreclosure connectors.
+*   **XSS Protection**: 
+    *   Added a `safeUrl` utility to sanitize document and attachment links in `DealRoom.tsx` and `Messages.tsx`, preventing Stored XSS attacks via malicious user uploads.
+*   **Webhook Security**: 
+    *   Updated the Meta webhook signature verification (`channels/webhooks.ts`) to be 'fail-closed', meaning unverified requests are immediately rejected rather than implicitly trusted.
+*   **Asynchronous Flow Stability**: 
+    *   Refactored the automated Deal Room creation process to use proper `await` and error handling. This prevents silent background failures that could lead to corrupted deal states.
 
-### Key Highlights
-- **3,101 US County Directory**: Pre-indexed directory covering all 50 US states (`app/db/county_directory.json`).
-- **Multi-Strategy Scraping Engine**:
-  1. **RealAuction Adapter**: Specialized for `realforeclose.com` & `taxdeedauction.com`.
-  2. **Playwright Headless SPA Adapter**: Obtains data from Angular/React portals (e.g., DuProcess, Tyler Eagle) while bypassing anti-bot 403 blocks.
-  3. **Direct JSON API Engine**: Fast native ingestion for standard JSON APIs.
-  4. **Firecrawl AI Scraper Engine**: Fallback AI extractor for HTML/PDF/GovOS/ASP.NET portals.
-- **Strict Data Quality & Freshness Controls**:
-  - Rejection of past auction dates and legacy filing records (2020–2025).
-  - Explicit document filtering excluding non-foreclosure types (`DEED`, `MORTGAGE`, `SATISFACTION`, `LIEN`).
-  - Automatic zero-value sanitization for monetary fields.
-- **Robust UI Safety**: Confirmation modal (`AlertDialog`) for connector deletion to prevent accidental loss.
+## 3. Current Security Posture
+The application demonstrates several strong architectural patterns:
 
----
+*   **Input Validation**: Extensive use of `zod` schemas in TRPC router inputs (`.input(...)`), ensuring strong typing and runtime validation of incoming data across all endpoints.
+*   **SQL Injection Defense**: Drizzle ORM is utilized for all database queries. Even where dynamic values are used in `sql\`\`` template tags (e.g., `aiSettings.ts`), Drizzle properly parameterizes the variables, mitigating SQL injection risks.
+*   **CSRF Protection**: A TRPC middleware (`csrfGuard`) validates the `Origin` and `Host` headers for mutations, providing a baseline defense against Cross-Site Request Forgery.
+*   **Authentication & Authorization**: The `requireAuth` and `requireRole` middlewares correctly enforce session presence and role-based access control (e.g., restricting certain queries to `admin`).
 
-## 2. Tech Stack Overview
+## 4. Recommendations & Areas for Improvement
+While the critical vulnerabilities have been addressed, the following areas should be monitored or improved in future iterations:
 
-| Category | Technology |
-|---|---|
-| **Frontend** | React 19, Vite, Tailwind CSS, Lucide Icons, Shadcn UI Components |
-| **Backend API** | Node.js, tRPC, Express |
-| **Database & ORM** | MySQL 8, Drizzle ORM |
-| **Scraping & Browser Automation** | Playwright (Chromium), Firecrawl AI API, Native Fetch |
-| **Testing** | Vitest (30/30 unit tests passing) |
-
----
-
-## 3. Architecture & Core Modules
-
-```mermaid
-graph TD
-    Client[React Frontend / Distressed.tsx] -->|tRPC| Router[foreclosuresRouter.ts]
-    Router -->|executeCountySyncAdapter| Registry[registry.ts]
-    Registry -->|realforeclose.com| RealAuction[realAuctionAdapter.ts]
-    Registry -->|SPA / DuProcess / Tyler| Playwright[playwrightSpaAdapter.ts]
-    Registry -->|JSON Endpoints| Direct[Direct JSON API]
-    Registry -->|HTML / PDF Fallback| Firecrawl[firecrawlAdapter.ts]
-    RealAuction & Playwright & Direct & Firecrawl -->|Raw JSON| Normalizer[normalize.ts]
-    Normalizer -->|Freshness & Doc Type Filter| DB[(MySQL Database)]
-```
+*   **Hardcoded SQL Queries**: In `app/api/queries/foreclosures.ts` (line 19), there are hardcoded demo case numbers and addresses (e.g., `26-CA-007712`, `Sligh Ave`). While not a security vulnerability, this creates technical debt and should be migrated to a proper filtering/search mechanism or removed if it was only for testing.
+*   **Rate Limiting**: Currently, there is no explicit rate limiting visible on public authentication or webhook endpoints. Implementing IP-based or user-based rate limiting is highly recommended to prevent brute-force attacks and abuse of external integrations.
+*   **External API Fallbacks**: The system previously relied on mock data when external APIs (like BatchData) failed. Going forward, ensure that external API failures gracefully degrade the user experience (e.g., showing a "Service Unavailable" message) rather than inserting synthetic data into the production database.
 
 ---
-
-## 4. Ingestion & Adapter Breakdown
-
-1. **`app/api/foreclosure/normalize.ts`**:
-   - `NON_FORECLOSURE_TYPES` blocklist for deeds, mortgages, liens, and releases.
-   - `isFreshRecord()` verification (excludes expired auctions & legacy filings).
-2. **`app/api/foreclosure/adapters/playwrightSpaAdapter.ts`**:
-   - Headless Chromium with custom headers, automated disclaimer clicker, and Angular grid row extractor.
-3. **`app/api/foreclosure/adapters/registry.ts`**:
-   - Automated routing based on URL signatures (`duprocess`, `realforeclose`, `iasworld`, `json_api`).
-
----
-
-## 5. Verification & Test Suite
-
-- **Vitest Suite**: `3 passed (30 tests total)`
-  - `api/schemas.test.ts` (15 tests)
-  - `api/uploads.test.ts` (9 tests)
-  - `api/emailAuth.test.ts` (6 tests)
-- **TypeScript Typecheck**: `npx tsc --noEmit` — **0 Errors**.
-
----
-
-## 6. Recommendations & Next Steps
-
-1. **Scheduled Sync Cron**: Implement automated background sync timers for high-priority counties.
-2. **Proxy Pool Integration**: Rotate residential proxies within the Playwright adapter for strict anti-scraping counties.
-3. **Property Geocoding**: Auto-populate missing lat/lng coordinates for newly scraped foreclosure parcels.
+*Audit completed by Antigravity.*
