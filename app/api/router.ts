@@ -12,6 +12,7 @@ import { notificationsRouter, verificationRouter } from "./notificationsRouter";
 import { aiRouter } from "./aiRouter";
 import { channelsRouter } from "./channelsRouter";
 import { uploadsRouter } from "./uploadsRouter";
+import { adminRouter } from "./adminRouter";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -29,6 +30,7 @@ export const appRouter = createRouter({
   ai: aiRouter,
   channels: channelsRouter,
   uploads: uploadsRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;

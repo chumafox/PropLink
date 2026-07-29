@@ -12,6 +12,7 @@ import Messages from "./pages/Messages";
 import DealRoom from "./pages/DealRoom";
 import Developers from "./pages/Developers";
 import Distressed from "./pages/Distressed";
+import Admin from "./pages/Admin";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/deals/:id" element={<DealRoom />} />
           <Route path="/developers" element={<Developers />} />
           <Route path="/distressed" element={<Distressed />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ErrorBoundary>

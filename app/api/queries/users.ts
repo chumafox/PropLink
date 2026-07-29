@@ -43,3 +43,12 @@ export async function findUserByEmail(email: string) {
     .limit(1);
   return row ?? null;
 }
+
+export async function findUserById(id: number) {
+  const [row] = await getDb()
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, id))
+    .limit(1);
+  return row ?? null;
+}

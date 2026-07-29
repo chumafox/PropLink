@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Building2, LayoutDashboard, LogOut, MessageSquare, Upload } from "lucide-react";
+import { Building2, LayoutDashboard, LogOut, MessageSquare, ShieldCheck, Upload } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { Badge } from "@/components/ui/badge";
 import NotificationsBell from "@/components/NotificationsBell";
@@ -92,6 +92,11 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
                   </DropdownMenuItem>
+                  {user?.role === "admin" && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <ShieldCheck className="mr-2 h-4 w-4 text-emerald-600" /> Admin Hub
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => navigate("/import")}>
                     <Upload className="mr-2 h-4 w-4" /> Import CSV / JSON
                   </DropdownMenuItem>

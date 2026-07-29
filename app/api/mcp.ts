@@ -25,9 +25,18 @@ import { searchForeclosures } from "./queries/foreclosures";
 import { findProfileByUserId, upsertProfile } from "./queries/profiles";
 import { listingInputSchema } from "@contracts/listing";
 import { proRoles } from "@db/schema";
+import { createNotification } from "./queries/notifications";
 import { dispatchWebhookEvent } from "./queries/webhookQueries";
 import { notifyListingMatches } from "./queries/savedSearches";
-import { createNotification } from "./queries/notifications";
+import { findUserById } from "./queries/users";
+import {
+  getAdminMetrics,
+  listUsersAdmin,
+  setUserRoleAdmin,
+  setVerificationStatusAdmin,
+  listListingsAdmin,
+  setListingStatusAdmin,
+} from "./queries/adminQueries";
 
 // ---------------------------------------------------------------------------
 // PropLink MCP server — Streamable HTTP, JSON-RPC 2.0, stateless.
@@ -247,6 +256,60 @@ const tools: { name: string; description: string; inputSchema: Json }[] = [
       required: ["proRole"],
     },
   },
+  {
+    name: "proplink_admin_get_metrics",
+    description: "ADMIN ONLY: Get high-level system metrics (total users, verified pros, active listings, offers, deals).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "proplink_admin_list_users",
+    description: "ADMIN ONLY: Search and list registered users with their roles and verification status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: { type: "string", description: "Search by name or email" },
+        role: { type: "string", enum: ["user", "agent", "investor", "title_company", "lenders", "attorney", "contractor", "wholesaler", "fix_flip", "admin"] },
+        limit: { type: "number" },
+        offset: { type: "number" },
+      },
+    },
+  },
+  {
+    name: "proplink_admin_set_user_role",
+    description: "ADMIN ONLY: Change a user's system role.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "number" },
+        role: { type: "string", enum: ["user", "agent", "investor", "title_company", "lenders", "attorney", "contractor", "wholesaler", "fix_flip", "admin"] },
+      },
+      required: ["userId", "role"],
+    },
+  },
+  {
+    name: "proplink_admin_verify_pro",
+    description: "ADMIN ONLY: Approve or reject an agent's license verification request.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "number" },
+        status: { type: "string", enum: ["verified", "rejected", "pending", "none"] },
+      },
+      required: ["userId", "status"],
+    },
+  },
+  {
+    name: "proplink_admin_moderate_listing",
+    description: "ADMIN ONLY: Override listing status (active, draft, archived, sold).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        listingId: { type: "number" },
+        status: { type: "string", enum: ["draft", "active", "pending", "sold", "archived"] },
+      },
+      required: ["listingId", "status"],
+    },
+  },
 ];
 
 async function callTool(
@@ -254,6 +317,14 @@ async function callTool(
   args: Json,
   userId: number,
 ): Promise<unknown> {
+  // Admin role check helper for admin tools
+  if (name.startsWith("proplink_admin_")) {
+    const callingUser = await findUserById(userId);
+    if (callingUser?.role !== "admin") {
+      throw new Error("Forbidden: Admin role required to execute this tool");
+    }
+  }
+
   switch (name) {
     case "proplink_search_listings":
       return searchListings({
@@ -398,6 +469,26 @@ async function callTool(
         onboarded: 1,
       });
     }
+
+    case "proplink_admin_get_metrics":
+      return getAdminMetrics();
+
+    case "proplink_admin_list_users":
+      return listUsersAdmin({
+        q: args.q as string,
+        role: args.role as any,
+        limit: args.limit ? Number(args.limit) : undefined,
+        offset: args.offset ? Number(args.offset) : undefined,
+      });
+
+    case "proplink_admin_set_user_role":
+      return setUserRoleAdmin(Number(args.userId), args.role as any);
+
+    case "proplink_admin_verify_pro":
+      return setVerificationStatusAdmin(Number(args.userId), args.status as any);
+
+    case "proplink_admin_moderate_listing":
+      return setListingStatusAdmin(Number(args.listingId), args.status as any);
 
     default:
       throw new Error(`Unknown tool: ${name}`);

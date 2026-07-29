@@ -12,6 +12,9 @@ import {
   index,
 } from "drizzle-orm/mysql-core";
 
+export const userRoles = ["user", "admin"] as const;
+export type UserRole = (typeof userRoles)[number];
+
 export const users = mysqlTable("users", {
   id: serial("id").primaryKey(),
   unionId: varchar("unionId", { length: 255 }).notNull().unique(),
@@ -20,7 +23,7 @@ export const users = mysqlTable("users", {
   // scrypt hash for email/password accounts (test/demo users without OAuth)
   passwordHash: varchar("passwordHash", { length: 255 }),
   avatar: text("avatar"),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", userRoles).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt")
     .defaultNow()
@@ -51,6 +54,9 @@ export const proRoles = [
 ] as const;
 export type ProRole = (typeof proRoles)[number];
 
+export const verificationStatuses = ["none", "pending", "verified", "rejected"] as const;
+export type VerificationStatus = (typeof verificationStatuses)[number];
+
 export const profiles = mysqlTable("profiles", {
   id: serial("id").primaryKey(),
   userId: bigint("userId", { mode: "number", unsigned: true })
@@ -63,11 +69,7 @@ export const profiles = mysqlTable("profiles", {
   licenseNumber: varchar("licenseNumber", { length: 128 }),
   bio: text("bio"),
   marketsServed: varchar("marketsServed", { length: 255 }),
-  verificationStatus: mysqlEnum("verificationStatus", [
-    "none",
-    "pending",
-    "verified",
-  ])
+  verificationStatus: mysqlEnum("verificationStatus", verificationStatuses)
     .default("none")
     .notNull(),
   onboarded: int("onboarded").default(0).notNull(), // 0/1 — mysql tinyint via int
