@@ -28,5 +28,4 @@ services:
         fromService:
           type: web
           name: proplink-app
-          property: envVar
           envVarKey: APP_ID
