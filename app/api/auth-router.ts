@@ -80,6 +80,12 @@ export const authRouter = createRouter({
           message: "Invalid email or password",
         });
       }
+      if (user.banned === 1) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This account has been suspended by an administrator.",
+        });
+      }
       if (!(await verifyPassword(input.password, user.passwordHash))) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
