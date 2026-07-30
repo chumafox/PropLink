@@ -24,6 +24,7 @@ export const users = mysqlTable("users", {
   passwordHash: varchar("passwordHash", { length: 255 }),
   avatar: text("avatar"),
   role: mysqlEnum("role", userRoles).default("user").notNull(),
+  banned: int("banned").default(0).notNull(), // 0 = active, 1 = banned
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt")
     .defaultNow()

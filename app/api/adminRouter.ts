@@ -4,6 +4,8 @@ import {
   getAdminMetrics,
   listUsersAdmin,
   setUserRoleAdmin,
+  toggleUserBanAdmin,
+  deleteUserAdmin,
   setVerificationStatusAdmin,
   listListingsAdmin,
   setListingStatusAdmin,
@@ -39,6 +41,27 @@ export const adminRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       return setUserRoleAdmin(input.userId, input.role);
+    }),
+
+  toggleUserBan: adminQuery
+    .input(
+      z.object({
+        userId: z.number().int().positive(),
+        banned: z.number().int().min(0).max(1),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return toggleUserBanAdmin(input.userId, input.banned);
+    }),
+
+  deleteUser: adminQuery
+    .input(
+      z.object({
+        userId: z.number().int().positive(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return deleteUserAdmin(input.userId);
     }),
 
   setVerificationStatus: adminQuery

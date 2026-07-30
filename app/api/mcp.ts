@@ -33,6 +33,8 @@ import {
   getAdminMetrics,
   listUsersAdmin,
   setUserRoleAdmin,
+  toggleUserBanAdmin,
+  deleteUserAdmin,
   setVerificationStatusAdmin,
   listListingsAdmin,
   setListingStatusAdmin,
@@ -299,6 +301,29 @@ const tools: { name: string; description: string; inputSchema: Json }[] = [
     },
   },
   {
+    name: "proplink_admin_ban_user",
+    description: "ADMIN ONLY: Block (banned=1) or unblock (banned=0) a user account.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "number" },
+        banned: { type: "number", description: "1 to ban/block, 0 to unblock" },
+      },
+      required: ["userId", "banned"],
+    },
+  },
+  {
+    name: "proplink_admin_delete_user",
+    description: "ADMIN ONLY: Permanently delete a user account and associated data.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "number" },
+      },
+      required: ["userId"],
+    },
+  },
+  {
     name: "proplink_admin_moderate_listing",
     description: "ADMIN ONLY: Override listing status (active, draft, archived, sold).",
     inputSchema: {
@@ -483,6 +508,12 @@ async function callTool(
 
     case "proplink_admin_set_user_role":
       return setUserRoleAdmin(Number(args.userId), args.role as any);
+
+    case "proplink_admin_ban_user":
+      return toggleUserBanAdmin(Number(args.userId), Number(args.banned));
+
+    case "proplink_admin_delete_user":
+      return deleteUserAdmin(Number(args.userId));
 
     case "proplink_admin_verify_pro":
       return setVerificationStatusAdmin(Number(args.userId), args.status as any);

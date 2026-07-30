@@ -25,6 +25,8 @@ import {
   XCircle,
   Database,
   Bot,
+  Ban,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/format";
@@ -65,6 +67,23 @@ export default function Admin() {
   const setVerification = trpc.admin.setVerificationStatus.useMutation({
     onSuccess: () => {
       toast.success("Verification status updated");
+      utils.admin.listUsers.invalidate();
+      utils.admin.getMetrics.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const toggleBan = trpc.admin.toggleUserBan.useMutation({
+    onSuccess: () => {
+      toast.success("User ban status updated");
+      utils.admin.listUsers.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteUser = trpc.admin.deleteUser.useMutation({
+    onSuccess: () => {
+      toast.success("User deleted successfully");
       utils.admin.listUsers.invalidate();
       utils.admin.getMetrics.invalidate();
     },
@@ -342,30 +361,72 @@ export default function Admin() {
                             </Select>
                           </td>
                           <td className="p-3">
-                            <Badge
-                              className={`border-0 ${
-                                u.verificationStatus === "verified"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              {u.verificationStatus ?? "none"}
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                className={`border-0 ${
+                                  u.verificationStatus === "verified"
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {u.verificationStatus ?? "none"}
+                              </Badge>
+                              {u.banned === 1 && (
+                                <Badge className="border-0 bg-red-100 text-red-700 font-semibold">
+                                  Banned
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3 text-muted-foreground">{u.company ?? "—"}</td>
                           <td className="p-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                setRole.mutate({
-                                  userId: u.id,
-                                  role: u.role === "admin" ? "user" : "admin",
-                                })
-                              }
-                            >
-                              {u.role === "admin" ? "Remove Admin" : "Make Admin"}
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-xs"
+                                onClick={() =>
+                                  setRole.mutate({
+                                    userId: u.id,
+                                    role: u.role === "admin" ? "user" : "admin",
+                                  })
+                                }
+                              >
+                                {u.role === "admin" ? "Remove Admin" : "Make Admin"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={u.banned === 1 ? "outline" : "secondary"}
+                                className={`h-8 text-xs ${
+                                  u.banned === 1
+                                    ? "text-emerald-700 hover:text-emerald-800"
+                                    : "text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border-0"
+                                }`}
+                                disabled={toggleBan.isPending}
+                                onClick={() =>
+                                  toggleBan.mutate({
+                                    userId: u.id,
+                                    banned: u.banned === 1 ? 0 : 1,
+                                  })
+                                }
+                              >
+                                <Ban className="mr-1 h-3.5 w-3.5" />
+                                {u.banned === 1 ? "Unblock" : "Block"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={deleteUser.isPending}
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to permanently delete user "${u.name || u.email}"?`)) {
+                                    deleteUser.mutate({ userId: u.id });
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}

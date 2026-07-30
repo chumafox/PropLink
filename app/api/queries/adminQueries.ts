@@ -80,6 +80,7 @@ export async function listUsersAdmin(input: {
       name: users.name,
       email: users.email,
       role: users.role,
+      banned: users.banned,
       avatar: users.avatar,
       createdAt: users.createdAt,
       proRole: profiles.proRole,
@@ -112,6 +113,18 @@ export async function setUserRoleAdmin(userId: number, role: UserRole) {
     .where(eq(users.id, userId))
     .limit(1);
   return updated ?? null;
+}
+
+export async function toggleUserBanAdmin(userId: number, banned: number) {
+  const db = getDb();
+  await db.update(users).set({ banned }).where(eq(users.id, userId));
+  return { id: userId, banned };
+}
+
+export async function deleteUserAdmin(userId: number) {
+  const db = getDb();
+  await db.delete(users).where(eq(users.id, userId));
+  return { ok: true, deletedUserId: userId };
 }
 
 export async function setVerificationStatusAdmin(
