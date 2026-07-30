@@ -27,7 +27,16 @@ import {
   Bot,
   Ban,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/format";
 
@@ -39,6 +48,12 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
   const [userQuery, setUserQuery] = useState("");
   const [listingQuery, setListingQuery] = useState("");
+
+  // Confirmation Modal States for Danger Actions
+  const [userToDelete, setUserToDelete] = useState<{ id: number; name: string | null; email: string | null } | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+
+  const [userToToggleBan, setUserToToggleBan] = useState<{ id: number; name: string | null; email: string | null; banned: number } | null>(null);
 
   const { data: metrics } = trpc.admin.getMetrics.useQuery(
     undefined,
@@ -76,6 +91,7 @@ export default function Admin() {
   const toggleBan = trpc.admin.toggleUserBan.useMutation({
     onSuccess: () => {
       toast.success("User ban status updated");
+      setUserToToggleBan(null);
       utils.admin.listUsers.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -84,6 +100,8 @@ export default function Admin() {
   const deleteUser = trpc.admin.deleteUser.useMutation({
     onSuccess: () => {
       toast.success("User deleted successfully");
+      setUserToDelete(null);
+      setDeleteConfirmInput("");
       utils.admin.listUsers.invalidate();
       utils.admin.getMetrics.invalidate();
     },
@@ -402,11 +420,12 @@ export default function Admin() {
                                     ? "text-emerald-700 hover:text-emerald-800"
                                     : "text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border-0"
                                 }`}
-                                disabled={toggleBan.isPending}
                                 onClick={() =>
-                                  toggleBan.mutate({
-                                    userId: u.id,
-                                    banned: u.banned === 1 ? 0 : 1,
+                                  setUserToToggleBan({
+                                    id: u.id,
+                                    name: u.name,
+                                    email: u.email,
+                                    banned: u.banned,
                                   })
                                 }
                               >
@@ -417,11 +436,13 @@ export default function Admin() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                disabled={deleteUser.isPending}
                                 onClick={() => {
-                                  if (window.confirm(`Are you sure you want to permanently delete user "${u.name || u.email}"?`)) {
-                                    deleteUser.mutate({ userId: u.id });
-                                  }
+                                  setUserToDelete({
+                                    id: u.id,
+                                    name: u.name,
+                                    email: u.email,
+                                  });
+                                  setDeleteConfirmInput("");
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -503,6 +524,131 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Block / Unblock User Confirmation Modal */}
+      <Dialog
+        open={!!userToToggleBan}
+        onOpenChange={(open) => !open && setUserToToggleBan(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 mb-2">
+              <Ban className="h-6 w-6 text-amber-600" />
+            </div>
+            <DialogTitle className="text-center">
+              {userToToggleBan?.banned === 1 ? "Unblock User Account?" : "Block User Account?"}
+            </DialogTitle>
+            <DialogDescription className="text-center text-sm pt-2">
+              {userToToggleBan?.banned === 1 ? (
+                <>
+                  Are you sure you want to unblock <strong>{userToToggleBan?.name || userToToggleBan?.email}</strong>? They will regain access to sign in and use PropLink.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to block <strong>{userToToggleBan?.name || userToToggleBan?.email}</strong>? The user will be immediately prohibited from logging in.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setUserToToggleBan(null)}
+              disabled={toggleBan.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={userToToggleBan?.banned === 1 ? "default" : "destructive"}
+              className={userToToggleBan?.banned === 1 ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+              disabled={toggleBan.isPending}
+              onClick={() => {
+                if (userToToggleBan) {
+                  toggleBan.mutate({
+                    userId: userToToggleBan.id,
+                    banned: userToToggleBan.banned === 1 ? 0 : 1,
+                  });
+                }
+              }}
+            >
+              {toggleBan.isPending
+                ? "Updating…"
+                : userToToggleBan?.banned === 1
+                ? "Confirm Unblock"
+                : "Confirm Block"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Modal (Requires Email Type Match Protection) */}
+      <Dialog
+        open={!!userToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUserToDelete(null);
+            setDeleteConfirmInput("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-red-200">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-2">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-red-700 font-bold">
+              Permanently Delete User Account?
+            </DialogTitle>
+            <DialogDescription className="text-center text-sm pt-2 text-muted-foreground">
+              This action <strong>CANNOT be undone</strong>. This will permanently delete user{" "}
+              <strong className="text-foreground">{userToDelete?.name || "User"}</strong> (
+              <span className="font-mono text-xs text-foreground">{userToDelete?.email}</span>), along with all their profile data, listings, and messages.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 space-y-2 rounded-lg bg-red-50 p-3 text-xs text-red-900 border border-red-100">
+            <p className="font-semibold">⚠️ Safety Verification:</p>
+            <p>
+              To confirm deletion, please type the user's email below:
+            </p>
+            <p className="font-mono font-bold select-all text-red-700">{userToDelete?.email}</p>
+            <Input
+              className="mt-2 bg-white border-red-300 text-sm focus-visible:ring-red-500"
+              placeholder={userToDelete?.email || "Type email to confirm"}
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+            />
+          </div>
+
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUserToDelete(null);
+                setDeleteConfirmInput("");
+              }}
+              disabled={deleteUser.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
+              disabled={
+                deleteUser.isPending ||
+                deleteConfirmInput.trim().toLowerCase() !== (userToDelete?.email || "").toLowerCase()
+              }
+              onClick={() => {
+                if (userToDelete) {
+                  deleteUser.mutate({ userId: userToDelete.id });
+                }
+              }}
+            >
+              {deleteUser.isPending ? "Deleting…" : "Permanently Delete User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
